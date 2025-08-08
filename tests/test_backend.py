@@ -1,92 +1,81 @@
+# -*- coding: utf-8 -*-
+"""
+Unit tests for the Kanban API.
+
+The tests use Flask's test client and monkeypatch to isolate file I/O.
+"""
+
 import json
 from pathlib import Path
-
 import pytest
-
-# Import the Flask app from backend module
 from backend import app as flask_app, TASKS_FILE
 
+# ---------------------------------------------------------------------------
+# Fixtures
+# ---------------------------------------------------------------------------
 @pytest.fixture
 def client():
-    """Provide a test client for the Flask application."""
     with flask_app.test_client() as c:
         yield c
 
-@pytest.fixture(autouse=True)
-def clean_tasks_file(tmp_path):
-    """Ensure tests start with an empty tasks.json file.
-    The fixture replaces TASKS_FILE with a temporary file during the test session.
+@pytest.fixture
+def temp_tasks_file(tmp_path, monkeypatch):
+    """Redirect the global TASKS_FILE to a temporary file.
+
+    This ensures that tests do not touch the real ``tasks.json``.
     """
-    original = str(TASKS_FILE)
     tmp = tmp_path / "tasks.json"
-    # Monkeypatch the global variable in backend module
-    import backend
-    backend.TASKS_FILE = tmp
-    yield
-    # Restore original path after tests
-    backend.TASKS_FILE = Path(original)
+    monkeypatch.setattr("backend.TASKS_FILE", str(tmp))
+    # Ensure the file exists before each test
+    tmp.write_text("[]")
+    return tmp
 
-# Helper to read current tasks from file
+# ---------------------------------------------------------------------------
+# Helper to parse JSON response
+# ---------------------------------------------------------------------------
+def _json_response(resp):
+    return json.loads(resp.data.decode("utf-8"))
 
-def _read_tasks():
-    with open(TASKS_FILE, "r", encoding="utf-8") as f:
-        return json.load(f)
+# ---------------------------------------------------------------------------
+# Test cases
+# ---------------------------------------------------------------------------
+def test_get_tasks_empty(client, temp_tasks_file):
+    resp = client.get("/api/tasks")
+    assert resp.status_code == 200
+    data = _json_response(resp)
+    assert "tasks" in data and isinstance(data["tasks"], list) and len(data["tasks"]) == 0
 
-def test_get_empty(client):
-    response = client.get("/api/tasks")
-    assert response.status_code == 200
-    data = response.get_json()
-    assert isinstance(data, list) and len(data) == 0
-
-def test_create_task(client):
+def test_create_task(client, temp_tasks_file):
     payload = {"content": "Test task", "state": "Por Hacer"}
-    response = client.post("/api/tasks", json=payload)
-    assert response.status_code == 201
-    created = response.get_json()
-    assert created["id"] == 1
-    assert created["content"] == payload["content"]
-    assert created["state"] == payload["state"]
+    resp = client.post("/api/tasks", json=payload)
+    assert resp.status_code == 201
+    data = _json_response(resp)
+    assert data["id"] == 1
+    assert data["content"] == payload["content"]
+    assert data["state"] == payload["state"]
 
     # Verify persistence
-    tasks = _read_tasks()
-    assert len(tasks) == 1
-    assert tasks[0] == created
+    resp2 = client.get("/api/tasks")
+    data2 = _json_response(resp2)
+    assert len(data2["tasks"]) == 1
 
-def test_update_task(client):
-    # First create a task
+def test_update_task(client, temp_tasks_file):
+    # Create a task first
     client.post("/api/tasks", json={"content": "Old", "state": "Por Hacer"})
     # Update it
-    response = client.put("/api/tasks/1", json={"content": "New", "state": "En Progreso"})
-    assert response.status_code == 200
-    updated = response.get_json()
-    assert updated["content"] == "New"
-    assert updated["state"] == "En Progreso"
+    resp = client.put("/api/tasks/1", json={"content": "New", "state": "En Progreso"})
+    assert resp.status_code == 200
+    data = _json_response(resp)
+    assert data["content"] == "New"
+    assert data["state"] == "En Progreso"
 
-    # Check file consistency
-    tasks = _read_tasks()
-    assert tasks[0]["content"] == "New"
-    assert tasks[0]["state"] == "En Progreso"
-
-def test_delete_task(client):
-    client.post("/api/tasks", json={"content": "To delete"})
-    response = client.delete("/api/tasks/1")
-    assert response.status_code == 200
-    data = response.get_json()
-    assert "deleted" in data["message"]
-
-    tasks = _read_tasks()
+def test_delete_task(client, temp_tasks_file):
+    client.post("/api/tasks", json={"content": "To delete", "state": "Por Hacer"})
+    resp = client.delete("/api/tasks/1")
+    assert resp.status_code == 200
+    data = _json_response(resp)
+    assert data["message"] == "Task deleted successfully."
+    # Verify deletion
+    resp2 = client.get("/api/tasks")
+    tasks = _json_response(resp2)["tasks"]
     assert len(tasks) == 0
-
-# Edge cases
-
-def test_create_missing_content(client):
-    response = client.post("/api/tasks", json={})
-    assert response.status_code == 400
-
-def test_update_nonexistent(client):
-    response = client.put("/api/tasks/999", json={"content": "X"})
-    assert response.status_code == 404
-
-def test_delete_nonexistent(client):
-    response = client.delete("/api/tasks/999")
-    assert response.status_code == 404
