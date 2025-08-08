@@ -1,0 +1,69 @@
+{
+  "api_contract": {
+    "ruta": "/api/tasks",
+    "metodo": "GET, POST, PUT, DELETE",
+    "descripcion": "Gestión de tareas en el tablero Kanban.",
+    "parametros_entrada_GET": {},
+    "parametros_entrada_POST": {
+      "content": "string",
+      "state": "string (Valores: 'Por Hacer', 'En Progreso', 'Hecho')"
+    },
+    "parametros_entrada_PUT": {
+      "id": "integer",
+      "content": "string",
+      "state": "string (Valores: 'Por Hacer', 'En Progreso', 'Hecho')"
+    },
+    "respuesta_GET": [
+      {
+        "id": "integer",
+        "content": "string",
+        "state": "string"
+      }
+    ],
+    "respuesta_POST": {
+      "id": "integer",
+      "content": "string",
+      "state": "string"
+    },
+    "respuesta_PUT": {
+      "id": "integer",
+      "content": "string",
+      "state": "string"
+    },
+    "respuesta_DELETE": {
+      "message": "string"
+    }
+  },
+  "plan": [
+    {
+      "etapa": "backend",
+      "tareas": [
+        "Inicializar un proyecto Flask con la estructura de directorios: app/, static/, templates/.",
+        "Crear el archivo tasks.json en el directorio raíz para persistencia y definir funciones auxiliares que lean y escriban este JSON.",
+        "Implementar una clase TaskModel que represente cada tarea con atributos id, content y state, y métodos de serialización a dict.",
+        "Definir el endpoint GET '/api/tasks' que lea tasks.json, convierta las tareas en diccionarios y devuelva un JSON array.",
+        "Definir el endpoint POST '/api/tasks' que reciba JSON con content y state, genere un id incremental, cree una nueva TaskModel, añada a la lista, guarde en tasks.json y retorne la tarea creada.",
+        "Definir el endpoint PUT '/api/tasks/<int:id>' que busque la tarea por id en la lista, actualice los campos content o state según lo recibido, guarde en tasks.json y devuelva la tarea modificada.",
+        "Definir el endpoint DELETE '/api/tasks/<int:id>' que elimine la tarea correspondiente de la lista, guarde en tasks.json y retorne un mensaje de éxito.",
+        "Agregar manejo de errores para casos de id no encontrado, datos inválidos y problemas de I/O al acceder a tasks.json.",
+        "Configurar CORS para permitir peticiones desde el archivo index.html servido localmente o por Flask.",
+        "Escribir tests unitarios con pytest que cubran cada endpoint: creación, lectura, actualización, borrado y persistencia en tasks.json."
+      ]
+    },
+    {
+      "etapa": "frontend",
+      "tareas": [
+        "Crear un único archivo index.html con la estructura básica de HTML5.",
+        "Incluir estilos CSS inline o dentro de una etiqueta <style> que utilicen Flexbox para colocar las tres columnas verticales con encabezados 'Por Hacer', 'En Progreso' y 'Hecho'.",
+        "Añadir un contenedor por cada columna, cada uno con el atributo data-state correspondiente.",
+        "Agregar un formulario en la columna 'Por Hacer' con un input de texto y un botón para crear nuevas tarjetas; al enviar, capturar el contenido, hacer una llamada POST a '/api/tasks', y renderizar la nueva tarjeta en la columna adecuada.",
+        "Implementar la lógica de edición: cuando se haga clic sobre el texto de una tarjeta, reemplazarlo por un input editable, guardar cambios con una llamada PUT al backend y actualizar visualmente la tarjeta.",
+        "Configurar drag-and-drop usando la API DragEvent nativa: establecer los atributos draggable en cada tarjeta, manejar eventos dragstart, dragover y drop para mover tarjetas entre columnas.",
+        "En el evento drop, leer el id de la tarjeta arrastrada, determinar el nuevo estado basado en la columna objetivo, enviar una llamada PUT al backend con el id y el nuevo state, y actualizar el DOM según la respuesta.",
+        "Incluir manejo básico de errores: mostrar alertas o mensajes dentro del HTML cuando las peticiones a la API fallen.",
+        "Añadir scripts JavaScript inline dentro de <script> que encapsulen todas las funciones mencionadas, manteniendo variables globales mínimas y siguiendo buenas prácticas de modularidad mediante IIFEs o módulos ES6 si el entorno lo permite.",
+        "Realizar pruebas manuales en diferentes navegadores para asegurar la correcta persistencia entre recargas y el correcto funcionamiento del drag-and-drop."
+      ]
+    }
+  ]
+}
