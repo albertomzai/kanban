@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<title>Kanban Mini-Trello</title>
+<style>
+/* Reset básico */
+*{margin:0;padding:0;box-sizing:border-box;font-family:sans-serif;}
+body{background:#f4f5f7;color:#333;display:flex;justify-content:center;align-items:flex-start;height:100vh;padding-top:20px;}
+.container{display:grid;grid-template-columns:repeat(3,1fr);gap:15px;width:90%;max-width:1200px;}
+.column{background:#ebecf0;border-radius:5px;padding:10px 5px;min-height:400px;display:flex;flex-direction:column;}
+.column h2{text-align:center;margin-bottom:10px;font-size:1.2rem;color:#555;}
+.card{background:white;border-radius:3px;padding:8px 12px;margin:5px 0;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.15);user-select:none;}
+.card[draggable="true"]{opacity:0.9;}
+#new-task-form{display:flex;flex-direction:column;margin-top:auto;}
+#new-task-input{padding:6px;font-size:1rem;border:1px solid #ccc;border-radius:3px;margin-bottom:5px;}
+#add-task-btn{background:#5aac44;color:white;border:none;padding:8px 12px;border-radius:3px;cursor:pointer;}
+#add-task-btn:hover{background:#519839;}
+.message{margin-top:10px;text-align:center;font-size:.9rem;background:#e7f3ff;padding:6px;border-radius:3px;color:#036;display:none;}
+.error{background:#ffe4e4;color:#d93025;}
+</style>
+</head>
+<body>
+<div class="container" id="board">
+  <div class="column" data-state="Por Hacer"><h2>Por Hacer</h2></div>
+  <div class="column" data-state="En Progreso"><h2>En Progreso</h2></div>
+  <div class="column" data-state="Hecho"><h2>Hecho</h2></div>
+</div>
+<div id="message" class="message"></div>
+<script>
+const board = document.getElementById('board');
+const messageEl = document.getElementById('message');
+
+function showMessage(msg, type='info'){
+  messageEl.textContent=msg;
+  messageEl.className=`message ${type==='error'?'error':''}`;
+  messageEl.style.display='block';
+}
+function hideMessage(){messageEl.style.display='none';}
+
+async function apiRequest(url, options={}){
+  try{const resp=await fetch(url,{...options});if(!resp.ok){const err=await resp.json();throw new Error(err.message||'Error API');}return await resp.json();}
+  catch(e){showMessage(`Error: ${e.message}`, 'error');throw e;}
+}
+
+function createCard(task){
+  const card=document.createElement('div');card.className='card';card.draggable=true;card.dataset.id=task.id;card.textContent=task.content;
+  // Edit on click
+  card.addEventListener('click',()=>{editTask(card, task);});
+  // Drag events
+  card.addEventListener('dragstart',e=>{e.dataTransfer.setData('text/plain',task.id);});
+  return card;
+}
+
+function editTask(card, task){
+  const input=document.createElement('input');input.type='text';input.value=task.content;input.style.width='100%';card.replaceWith(input);
+  input.focus();
+  function save(){const newContent=input.value.trim();if(newContent && newContent!==task.content){apiRequest(`/api/tasks/${task.id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({content:newContent})}).then(updated=>{card.textContent=updated.content;board.querySelector(`.column[data-state="${updated.state}"]`).appendChild(card);});}else{board.querySelector(`.column[data-state="${task.state}"]`).appendChild(card);}input.remove();}
+  input.addEventListener('blur',save);
+  input.addEventListener('keydown',(e)=>{if(e.key==='Enter'){save();}});
+}
+
+function renderBoard(tasks){
+  board.querySelectorAll('.column').forEach(col=>{col.querySelectorAll('.card').forEach(c=>c.remove());});
+  tasks.forEach(task=>{
+    const col=board.querySelector(`.column[data-state="${task.state}"]`);
+    if(col) col.appendChild(createCard(task));
+  });
+}
+
+async function loadTasks(){
+  try{const data=await apiRequest('/api/tasks');renderBoard(data);hideMessage();}catch(e){/* error shown in apiRequest */}
+}
+
+// Setup drag over columns
+board.querySelectorAll('.column').forEach(col=>{
+  col.addEventListener('dragover',e=>{e.preventDefault();});
+  col.addEventListener('drop',async e=>{e.preventDefault();const id=e.dataTransfer.getData('text/plain');const newState=col.dataset.state;await apiRequest(`/api/tasks/${id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({state:newState})});loadTasks();});
+});
+
+// Add task form in first column
+const firstCol=board.querySelector('.column[data-state="Por Hacer"]');
+const form=document.createElement('form');form.id='new-task-form';
+const input=document.createElement('input');input.type='text';input.id='new-task-input';input.placeholder='Nueva tarea...';input.required=true;
+const btn=document.createElement('button');btn.type='submit';btn.id='add-task-btn';btn.textContent='Agregar';
+form.appendChild(input);form.appendChild(btn);
+firstCol.appendChild(form);
+
+form.addEventListener('submit',async e=>{e.preventDefault();const content=input.value.trim();if(content){try{await apiRequest('/api/tasks',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({content})});input.value='';loadTasks();}catch(){}}});
+
+// Inicializar
+loadTasks();
+</script>
+</body>
+</html>
