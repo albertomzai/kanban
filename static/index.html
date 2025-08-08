@@ -1,95 +1,192 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8"/>
+<meta charset="UTF-8">
 <title>Kanban Mini-Trello</title>
 <style>
-/* Reset básico */
-*{margin:0;padding:0;box-sizing:border-box;font-family:sans-serif;}
-body{background:#f4f5f7;color:#333;display:flex;justify-content:center;align-items:flex-start;height:100vh;padding-top:20px;}
-.container{display:grid;grid-template-columns:repeat(3,1fr);gap:15px;width:90%;max-width:1200px;}
-.column{background:#ebecf0;border-radius:5px;padding:10px 5px;min-height:400px;display:flex;flex-direction:column;}
-.column h2{text-align:center;margin-bottom:10px;font-size:1.2rem;color:#555;}
-.card{background:white;border-radius:3px;padding:8px 12px;margin:5px 0;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.15);user-select:none;}
-.card[draggable="true"]{opacity:0.9;}
-#new-task-form{display:flex;flex-direction:column;margin-top:auto;}
-#new-task-input{padding:6px;font-size:1rem;border:1px solid #ccc;border-radius:3px;margin-bottom:5px;}
-#add-task-btn{background:#5aac44;color:white;border:none;padding:8px 12px;border-radius:3px;cursor:pointer;}
-#add-task-btn:hover{background:#519839;}
-.message{margin-top:10px;text-align:center;font-size:.9rem;background:#e7f3ff;padding:6px;border-radius:3px;color:#036;display:none;}
-.error{background:#ffe4e4;color:#d93025;}
+/* Guía de Estilo: colores y tipografía */
+body {
+  font-family: Arial, sans-serif;
+  margin: 0;
+  padding: 20px;
+  background-color: #f5f5f5;
+}
+header {
+  text-align: center;
+  margin-bottom: 20px;
+}
+#board {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+.column {
+  background-color: #e0e0e0;
+  border-radius: 5px;
+  padding: 10px;
+  width: 32%;
+  min-height: 400px;
+  display: flex;
+  flex-direction: column;
+}
+.column h2 {
+  text-align: center;
+}
+.card {
+  background-color: #fff;
+  border-radius: 3px;
+  padding: 8px;
+  margin-bottom: 8px;
+  cursor: grab;
+  box-shadow: 0 1px 3px rgba(0,0,0,.2);
+}
+#add-task {
+  display: flex;
+  gap: 5px;
+  margin-top: 10px;
+}
+#new-task-input {
+  flex-grow: 1;
+  padding: 5px;
+}
+button {
+  padding: 5px 10px;
+}
 </style>
 </head>
 <body>
-<div class="container" id="board">
-  <div class="column" data-state="Por Hacer"><h2>Por Hacer</h2></div>
-  <div class="column" data-state="En Progreso"><h2>En Progreso</h2></div>
-  <div class="column" data-state="Hecho"><h2>Hecho</h2></div>
+<header>
+  <h1>Kanban Mini-Trello</h1>
+</header>
+<div id="board">
+  <div class="column" data-state="Por Hacer" id="col-por-hacer"></div>
+  <div class="column" data-state="En Progreso" id="col-en-progreso"></div>
+  <div class="column" data-state="Hecho" id="col-hecho"></div>
 </div>
-<div id="message" class="message"></div>
+<div id="add-task">
+  <input type="text" id="new-task-input" placeholder="Nueva tarea...">
+  <button id="btn-add">Añadir</button>
+</div>
 <script>
-const board = document.getElementById('board');
-const messageEl = document.getElementById('message');
+const STATE_MAP = {
+  'col-por-hacer': 'Por Hacer',
+  'col-en-progreso': 'En Progreso',
+  'col-hecho': 'Hecho'
+};
 
-function showMessage(msg, type='info'){
-  messageEl.textContent=msg;
-  messageEl.className=`message ${type==='error'?'error':''}`;
-  messageEl.style.display='block';
-}
-function hideMessage(){messageEl.style.display='none';}
-
-async function apiRequest(url, options={}){
-  try{const resp=await fetch(url,{...options});if(!resp.ok){const err=await resp.json();throw new Error(err.message||'Error API');}return await resp.json();}
-  catch(e){showMessage(`Error: ${e.message}`, 'error');throw e;}
-}
-
-function createCard(task){
-  const card=document.createElement('div');card.className='card';card.draggable=true;card.dataset.id=task.id;card.textContent=task.content;
-  // Edit on click
-  card.addEventListener('click',()=>{editTask(card, task);});
+function crearCard(task) {
+  const card = document.createElement('div');
+  card.className = 'card';
+  card.draggable = true;
+  card.dataset.id = task.id;
+  card.textContent = task.content;
   // Drag events
-  card.addEventListener('dragstart',e=>{e.dataTransfer.setData('text/plain',task.id);});
+  card.addEventListener('dragstart', e => {
+    e.dataTransfer.setData('text/plain', task.id);
+  });
+  // Edit inline on dblclick
+  card.addEventListener('dblclick', () => editCard(card, task));
   return card;
 }
 
-function editTask(card, task){
-  const input=document.createElement('input');input.type='text';input.value=task.content;input.style.width='100%';card.replaceWith(input);
-  input.focus();
-  function save(){const newContent=input.value.trim();if(newContent && newContent!==task.content){apiRequest(`/api/tasks/${task.id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({content:newContent})}).then(updated=>{card.textContent=updated.content;board.querySelector(`.column[data-state="${updated.state}"]`).appendChild(card);});}else{board.querySelector(`.column[data-state="${task.state}"]`).appendChild(card);}input.remove();}
-  input.addEventListener('blur',save);
-  input.addEventListener('keydown',(e)=>{if(e.key==='Enter'){save();}});
-}
-
-function renderBoard(tasks){
-  board.querySelectorAll('.column').forEach(col=>{col.querySelectorAll('.card').forEach(c=>c.remove());});
-  tasks.forEach(task=>{
-    const col=board.querySelector(`.column[data-state="${task.state}"]`);
-    if(col) col.appendChild(createCard(task));
+function renderTasks(tasks) {
+  Object.values(STATE_MAP).forEach(state => {
+    const col = document.querySelector(`.column[data-state="${state}"]`);
+    col.innerHTML = '';
+  });
+  tasks.forEach(task => {
+    const card = crearCard(task);
+    const col = document.querySelector(`.column[data-state="${task.state}"]`);
+    col.appendChild(card);
   });
 }
 
-async function loadTasks(){
-  try{const data=await apiRequest('/api/tasks');renderBoard(data);hideMessage();}catch(e){/* error shown in apiRequest */}
+async function fetchTasks() {
+  try {
+    const res = await fetch('/api/tasks');
+    if (!res.ok) throw new Error('Error al obtener tareas');
+    const data = await res.json();
+    renderTasks(data.tasks);
+  } catch (err) {
+    alert(err.message);
+  }
 }
 
-// Setup drag over columns
-board.querySelectorAll('.column').forEach(col=>{
-  col.addEventListener('dragover',e=>{e.preventDefault();});
-  col.addEventListener('drop',async e=>{e.preventDefault();const id=e.dataTransfer.getData('text/plain');const newState=col.dataset.state;await apiRequest(`/api/tasks/${id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({state:newState})});loadTasks();});
+async function addTask(content) {
+  try {
+    const res = await fetch('/api/tasks', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content, state: 'Por Hacer' })
+    });
+    if (!res.ok) throw new Error('Error al crear tarea');
+    const task = await res.json();
+    // Append to column
+    const card = crearCard(task);
+    document.querySelector('.column[data-state="Por Hacer"]').appendChild(card);
+  } catch (err) {
+    alert(err.message);
+  }
+}
+
+async function updateTask(id, payload) {
+  try {
+    const res = await fetch(`/api/tasks/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    if (!res.ok) throw new Error('Error al actualizar tarea');
+  } catch (err) {
+    alert(err.message);
+  }
+}
+
+function editCard(card, task) {
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.value = task.content;
+  input.style.width = '100%';
+  card.replaceWith(input);
+  input.focus();
+  const finishEdit = async () => {
+    const newContent = input.value.trim();
+    if (newContent && newContent !== task.content) {
+      await updateTask(task.id, { content: newContent });
+      task.content = newContent;
+    }
+    input.replaceWith(card);
+  };
+  input.addEventListener('blur', finishEdit);
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter') finishEdit();
+  });
+}
+
+// Drag and drop for columns
+document.querySelectorAll('.column').forEach(col => {
+  col.addEventListener('dragover', e => e.preventDefault());
+  col.addEventListener('drop', async e => {
+    const id = e.dataTransfer.getData('text/plain');
+    const newState = STATE_MAP[col.id];
+    await updateTask(id, { state: newState });
+    // Move card in DOM
+    const card = document.querySelector(`.card[data-id="${id}"]`);
+    if (card) col.appendChild(card);
+  });
 });
 
-// Add task form in first column
-const firstCol=board.querySelector('.column[data-state="Por Hacer"]');
-const form=document.createElement('form');form.id='new-task-form';
-const input=document.createElement('input');input.type='text';input.id='new-task-input';input.placeholder='Nueva tarea...';input.required=true;
-const btn=document.createElement('button');btn.type='submit';btn.id='add-task-btn';btn.textContent='Agregar';
-form.appendChild(input);form.appendChild(btn);
-firstCol.appendChild(form);
-
-form.addEventListener('submit',async e=>{e.preventDefault();const content=input.value.trim();if(content){try{await apiRequest('/api/tasks',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({content})});input.value='';loadTasks();}catch(){}}});
+// Add task button
+document.getElementById('btn-add').addEventListener('click', () => {
+  const input = document.getElementById('new-task-input');
+  const content = input.value.trim();
+  if (!content) return;
+  addTask(content);
+  input.value = '';
+});
 
 // Inicializar
-loadTasks();
+fetchTasks();
 </script>
 </body>
 </html>
