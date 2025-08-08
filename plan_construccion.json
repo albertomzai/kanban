@@ -1,73 +1,25 @@
 {
   "api_contract": {
-    "ruta": "/api/tasks",
-    "metodos_disponibles": [
-      "GET",
-      "POST"
-    ],
-    "descripcion": "Gestiona la colección de tareas del tablero Kanban.",
-    "esquema_respuesta_GET": [
-      {
-        "id": "integer",
-        "content": "string",
-        "state": "string (Valores: 'Por Hacer', 'En Progreso', 'Hecho')"
-      }
-    ],
-    "esquema_body_POST": {
-      "content": "string",
-      "state": "string (Valores: 'Por Hacer')"
+    "ruta": "/api/tasks/<id>",
+    "metodo": "DELETE",
+    "descripcion": "Endpoint para eliminar una tarea existente.",
+    "parametros_entrada": {
+      "id": "integer"
     },
-    "respuesta_POST": {
-      "id": "integer",
-      "content": "string",
-      "state": "string"
-    },
-    "ruta_id": "/api/tasks/<int:id>",
-    "metodos_disponibles_id": [
-      "PUT",
-      "DELETE"
-    ],
-    "esquema_body_PUT": {
-      "content": "string (opcional)",
-      "state": "string (Valores: 'Por Hacer', 'En Progreso', 'Hecho')"
-    },
-    "respuesta_PUT": {
-      "id": "integer",
-      "content": "string",
-      "state": "string"
-    }
+    "respuesta_esperada": {}
   },
   "plan": [
     {
       "etapa": "backend",
       "tareas": [
-        "Crear la estructura de directorios del proyecto Flask: app/, static/, templates/.",
-        "Inicializar un archivo '__init__.py' que configure la aplicación Flask y la ruta base '/api'.",
-        "Implementar una clase 'TaskRepository' responsable de leer y escribir el archivo 'tasks.json', con métodos para obtener, crear, actualizar y eliminar tareas.",
-        "Definir la entidad 'Task' con atributos id (int), content (str) y state (str).",
-        "Crear un endpoint GET '/api/tasks' que devuelva todas las tareas en formato JSON.",
-        "Crear un endpoint POST '/api/tasks' que reciba JSON con los campos 'content' y 'state', genere un nuevo ID, guarde la tarea y retorne el objeto creado.",
-        "Implementar un endpoint PUT '/api/tasks/<int:id>' que permita actualizar 'content' y/o 'state' de una tarea existente, retornando la tarea actualizada.",
-        "Crear un endpoint DELETE '/api/tasks/<int:id>' que elimine la tarea correspondiente y devuelva un estado 204.",
-        "Agregar manejo de errores: validar JSON recibido, verificar existencia del ID antes de actualizar o eliminar, y devolver códigos HTTP adecuados (400, 404).",
-        "Configurar CORS para permitir solicitudes desde el mismo dominio donde se servirá 'index.html'.",
-        "Escribir pruebas unitarias básicas con unittest que cubran cada endpoint y los casos de error.",
-        "Documentar la API en un README breve dentro del repositorio."
+        "Crear un endpoint DELETE para eliminar la tarea existente con el ID especificado."
       ]
     },
     {
       "etapa": "frontend",
       "tareas": [
-        "Crear el archivo 'index.html' con una estructura básica: encabezado, tres columnas verticales etiquetadas 'Por Hacer', 'En Progreso' y 'Hecho'.",
-        "Incluir en el HTML un botón 'Añadir Tarea' que abra un formulario modal o inline para introducir el texto de la nueva tarea.",
-        "Agregar estilos CSS usando Flexbox para alinear las columnas y tarjetas, con colores distintivos por estado.",
-        "Escribir JavaScript ES6 dentro de una etiqueta <script> en 'index.html':",
-        "  - Función que carga todas las tareas llamando a GET '/api/tasks' y renderiza las tarjetas en sus columnas correspondientes.",
-        "  - Lógica para crear una tarea: captura el texto del formulario, envía POST '/api/tasks', actualiza la vista con la tarjeta recién creada.",
-        "  - Implementar edición inline de tarjetas: al hacer clic en el contenido, reemplazar por un campo input editable y enviar PUT cuando se confirme.",
-        "  - Configurar drag-and-drop usando la API Drag and Drop nativa: establecer 'draggable' en las tarjetas, manejar eventos 'dragstart', 'drop' y actualizar el estado con una llamada PUT al backend.",
-        "  - Manejar errores de red mostrando mensajes breves dentro del UI cuando las peticiones fallan.",
-        "Asegurar que todas las funciones sean puras y que la manipulación del DOM se realice mediante selectores claros para facilitar pruebas futuras."
+        "Crear un botón para eliminar la tarea.",
+        "Implementar el código JavaScript para hacer una solicitud AJAX al backend y actualizar dinámicamente el área de resultados en 'index.html' después de eliminar la tarea."
       ]
     }
   ]
