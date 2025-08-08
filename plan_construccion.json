@@ -1,50 +1,78 @@
 {
   "api_contract": {
     "ruta": "/api/tasks",
-    "metodo": "GET, POST, PUT, DELETE",
-    "descripcion": "Gestión CRUD de tareas en el tablero Kanban.",
-    "esquema_de_datos_tarea": {
-      "id": "integer",
-      "content": "string",
-      "state": "string (Valores: 'Por Hacer', 'En Progreso', 'Hecho')"
+    "metodo_GET": {
+      "descripcion": "Devuelve todas las tareas existentes.",
+      "respuesta_esperada": {
+        "tasks": [
+          {
+            "id": "integer",
+            "content": "string",
+            "state": "string (Valores: 'Por Hacer', 'En Progreso', 'Hecho')"
+          }
+        ]
+      }
     },
-    "parametros_entrada_post": {
-      "content": "string",
-      "state": "string (opcional, default 'Por Hacer')"
+    "metodo_POST": {
+      "descripcion": "Crea una nueva tarea con contenido y estado inicial.",
+      "parametros_entrada": {
+        "content": "string",
+        "state": "string (Valor: 'Por Hacer')"
+      },
+      "respuesta_esperada": {
+        "id": "integer",
+        "content": "string",
+        "state": "string"
+      }
     },
-    "parametros_entrada_put": {
-      "content": "string (opcional)",
-      "state": "string (opcional)"
+    "metodo_PUT": {
+      "descripcion": "Actualiza una tarea existente por id.",
+      "parametros_entrada": {
+        "content": "string (opcional)",
+        "state": "string (opcional)"
+      },
+      "respuesta_esperada": {
+        "id": "integer",
+        "content": "string",
+        "state": "string"
+      }
+    },
+    "metodo_DELETE": {
+      "descripcion": "Elimina una tarea existente por id.",
+      "respuesta_esperada": {
+        "message": "string"
+      }
     }
   },
   "plan": [
     {
       "etapa": "backend",
       "tareas": [
-        "Crear la estructura de directorios para el proyecto Flask: app, static, templates.",
-        "Inicializar un virtualenv y declarar las dependencias en requirements.txt (Flask).",
-        "Implementar la carga inicial del archivo 'tasks.json' al iniciar la aplicación y guardarlo tras cada operación.",
-        "Definir la ruta GET '/api/tasks' que devuelve una lista JSON con todas las tareas según el esquema de datos.",
-        "Crear la ruta POST '/api/tasks' que recibe un cuerpo JSON, asigna un id incremental, valida los campos y añade la tarea al archivo.",
-        "Implementar la ruta PUT '/api/tasks/<int:id>' para actualizar contenido o estado; validar existencia del id y campos recibidos.",
-        "Agregar la ruta DELETE '/api/tasks/<int:id>' que elimina la tarea correspondiente y actualiza el archivo.",
-        "Configurar manejo de errores HTTP (404, 400) con respuestas JSON consistentes.",
-        "Incluir un middleware simple para habilitar CORS hacia el dominio del frontend.",
-        "Probar las rutas con curl o Postman asegurando que los datos persisten en 'tasks.json'."
+        "Crear un entorno virtual y activar dependencias básicas de Flask.",
+        "Estructurar el proyecto con carpetas 'app', 'static' y 'templates'.",
+        "Implementar un módulo 'tasks_manager.py' que cargue, guarde y manipule datos en 'tasks.json'.",
+        "Definir una clase Flask 'KanbanAPI' con los endpoints GET, POST, PUT y DELETE según el contrato.",
+        "Configurar manejo de errores para respuestas JSON coherentes.",
+        "Agregar lógica de generación automática de IDs únicos al crear tareas.",
+        "Implementar validación de entrada para asegurar que 'state' sea uno de los valores permitidos.",
+        "Habilitar CORS para permitir llamadas desde la SPA en el mismo dominio.",
+        "Escribir pruebas unitarias básicas para cada endpoint usando Flask's test client.",
+        "Documentar la API con comentarios claros y mantener el contrato actualizado."
       ]
     },
     {
       "etapa": "frontend",
       "tareas": [
-        "Crear el archivo único 'index.html' con la estructura básica: título, contenedor principal y tres columnas etiquetadas.",
-        "Definir estilos CSS usando Flexbox o Grid para disponer las columnas verticalmente y tarjetas responsivas.",
-        "Agregar un botón/ formulario en la columna 'Por Hacer' que permita crear nuevas tareas enviando una solicitud POST al backend.",
-        "Implementar lógica JavaScript inline para cargar todas las tareas desde GET '/api/tasks' al inicializar la página y renderizarlas en sus columnas correspondientes.",
-        "Añadir eventos de clic a cada tarjeta para activar un modo de edición del texto, guardando cambios con PUT cuando se confirma.",
-        "Integrar una librería ligera de drag-and-drop (o API nativa) para permitir mover tarjetas entre columnas; al soltar actualizar el estado mediante PUT.",
-        "Actualizar la vista en tiempo real después de cada operación (creación, edición, movimiento o eliminación).",
-        "Incluir manejo básico de errores: mostrar mensajes al usuario cuando las llamadas a la API fallen.",
-        "Optimizar el código para mantenerlo autocontenida y fácilmente extensible sin dependencias externas."
+        "Crear 'index.html' con estructura básica: encabezado, tres columnas de tablero y un formulario para añadir tareas.",
+        "Incorporar estilos CSS inline o en una etiqueta <style> usando Flexbox para la disposición vertical de las columnas.",
+        "Agregar tarjetas como elementos <div> dentro de cada columna, generados dinámicamente por JavaScript.",
+        "Implementar función JavaScript que haga fetch GET a '/api/tasks' al cargar la página y renderice todas las tarjetas.",
+        "Añadir evento click en el botón 'Add Task' para capturar texto del input y enviar POST a '/api/tasks', luego actualizar la vista.",
+        "Habilitar edición inline: al hacer doble clic en una tarjeta, reemplazar su contenido por un campo de texto editable que envíe PUT al terminar.",
+        "Integrar drag-and-drop usando el API DragEvent para mover tarjetas entre columnas.",
+        "Al soltar una tarjeta, enviar PUT a '/api/tasks/<id>' con el nuevo estado basado en la columna destino.",
+        "Incluir manejo de errores simples: mostrar mensajes de alerta si las llamadas a la API fallan.",
+        "Optimizar rendimiento evitando re-renderizados completos al actualizar tareas individuales."
       ]
     }
   ]
