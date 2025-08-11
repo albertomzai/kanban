@@ -1,6 +1,2 @@
-# Runtime dependencies
 Flask
 Flask-Cors
-
-# Development / testing dependencies
-pytest
