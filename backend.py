@@ -2,13 +2,15 @@ from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
 import json
 import os
+import uuid
 
 app = Flask(__name__, static_folder='static')
 CORS(app)
 
+# Path to the tasks file
 TASKS_FILE = 'tasks.json'
 
-# Helper functions for task persistence
+# Helper functions
 
 def load_tasks():
     if not os.path.exists(TASKS_FILE):
@@ -21,14 +23,14 @@ def load_tasks():
 
 def save_tasks(tasks):
     with open(TASKS_FILE, 'w', encoding='utf-8') as f:
-        json.dump(tasks, f, indent=2)
+        json.dump(tasks, f, ensure_ascii=False, indent=2)
 
-# Ruta para servir el frontend
+# Root route to serve the frontend
 @app.route('/')
 def index():
     return send_from_directory(app.static_folder, 'index.html')
 
-# API RESTful para tareas
+# API endpoints
 @app.route('/api/tasks', methods=['GET'])
 def get_tasks():
     tasks = load_tasks()
@@ -36,36 +38,40 @@ def get_tasks():
 
 @app.route('/api/tasks', methods=['POST'])
 def create_task():
-    data = request.get_json() or {}
+    data = request.get_json(force=True)
     content = data.get('content')
     if not content:
-        return jsonify({'error': 'Content required'}), 400
+        return jsonify({'error': 'Content is required'}), 400
+    task = {
+        'id': str(uuid.uuid4()),
+        'content': content,
+        'status': 'Por Hacer'
+    }
     tasks = load_tasks()
-    new_id = max([t['id'] for t in tasks], default=0) + 1
-    task = {'id': new_id, 'content': content, 'status': 'Por Hacer'}
     tasks.append(task)
     save_tasks(tasks)
     return jsonify(task), 201
 
-@app.route('/api/tasks/<int:task_id>', methods=['PUT'])
+@app.route('/api/tasks/<task_id>', methods=['PUT'])
 def update_task(task_id):
-    data = request.get_json() or {}
+    data = request.get_json(force=True)
     tasks = load_tasks()
-    for t in tasks:
-        if t['id'] == task_id:
-            t.update({k: v for k, v in data.items() if k in ['content', 'status']})
+    for task in tasks:
+        if task['id'] == task_id:
+            task['content'] = data.get('content', task['content'])
+            task['status'] = data.get('status', task['status'])
             save_tasks(tasks)
-            return jsonify(t), 200
+            return jsonify(task), 200
     return jsonify({'error': 'Task not found'}), 404
 
-@app.route('/api/tasks/<int:task_id>', methods=['DELETE'])
+@app.route('/api/tasks/<task_id>', methods=['DELETE'])
 def delete_task(task_id):
     tasks = load_tasks()
     new_tasks = [t for t in tasks if t['id'] != task_id]
     if len(new_tasks) == len(tasks):
         return jsonify({'error': 'Task not found'}), 404
     save_tasks(new_tasks)
-    return '', 204
+    return jsonify({'message': 'Task deleted'}), 200
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
