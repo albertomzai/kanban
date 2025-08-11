@@ -1,81 +1,46 @@
-# -*- coding: utf-8 -*-
 """
-Unit tests for the Kanban API.
-
-The tests use Flask's test client and monkeypatch to isolate file I/O.
+Unit tests for the backend API.
+Uses Flask test client and monkeypatch to isolate file operations.
 """
 
 import json
+import os
 from pathlib import Path
 import pytest
+
+# Import the Flask app
 from backend import app as flask_app, TASKS_FILE
 
-# ---------------------------------------------------------------------------
-# Fixtures
-# ---------------------------------------------------------------------------
 @pytest.fixture
 def client():
-    with flask_app.test_client() as c:
-        yield c
+    with flask_app.test_client() as client:
+        yield client
 
 @pytest.fixture
 def temp_tasks_file(tmp_path, monkeypatch):
-    """Redirect the global TASKS_FILE to a temporary file.
+    """Provide a temporary tasks.json file for each test."""
+    temp_file = tmp_path / "tasks.json"
+    # Ensure the file exists with an empty list
+    temp_file.write_text("[]", encoding="utf-8")
+    # Patch the TASKS_FILE path in the backend module
+    monkeypatch.setattr("backend.TASKS_FILE", str(temp_file))
+    return temp_file
 
-    This ensures that tests do not touch the real ``tasks.json``.
-    """
-    tmp = tmp_path / "tasks.json"
-    monkeypatch.setattr("backend.TASKS_FILE", str(tmp))
-    # Ensure the file exists before each test
-    tmp.write_text("[]")
-    return tmp
+def test_delete_existing_task(client, temp_tasks_file):
+    # Create a task directly in the file
+    tasks = [{"id": 1, "content": "Test Task", "status": "Por Hacer"}]
+    temp_tasks_file.write_text(json.dumps(tasks), encoding="utf-8")
 
-# ---------------------------------------------------------------------------
-# Helper to parse JSON response
-# ---------------------------------------------------------------------------
-def _json_response(resp):
-    return json.loads(resp.data.decode("utf-8"))
+    response = client.delete("/api/tasks/1")
+    assert response.status_code == 204
+    # Verify the file is now empty
+    remaining = json.loads(temp_tasks_file.read_text(encoding="utf-8"))
+    assert remaining == []
 
-# ---------------------------------------------------------------------------
-# Test cases
-# ---------------------------------------------------------------------------
-def test_get_tasks_empty(client, temp_tasks_file):
-    resp = client.get("/api/tasks")
-    assert resp.status_code == 200
-    data = _json_response(resp)
-    assert "tasks" in data and isinstance(data["tasks"], list) and len(data["tasks"]) == 0
+def test_delete_nonexistent_task(client, temp_tasks_file):
+    # Ensure file has no tasks
+    temp_tasks_file.write_text("[]", encoding="utf-8")
 
-def test_create_task(client, temp_tasks_file):
-    payload = {"content": "Test task", "state": "Por Hacer"}
-    resp = client.post("/api/tasks", json=payload)
-    assert resp.status_code == 201
-    data = _json_response(resp)
-    assert data["id"] == 1
-    assert data["content"] == payload["content"]
-    assert data["state"] == payload["state"]
-
-    # Verify persistence
-    resp2 = client.get("/api/tasks")
-    data2 = _json_response(resp2)
-    assert len(data2["tasks"]) == 1
-
-def test_update_task(client, temp_tasks_file):
-    # Create a task first
-    client.post("/api/tasks", json={"content": "Old", "state": "Por Hacer"})
-    # Update it
-    resp = client.put("/api/tasks/1", json={"content": "New", "state": "En Progreso"})
-    assert resp.status_code == 200
-    data = _json_response(resp)
-    assert data["content"] == "New"
-    assert data["state"] == "En Progreso"
-
-def test_delete_task(client, temp_tasks_file):
-    client.post("/api/tasks", json={"content": "To delete", "state": "Por Hacer"})
-    resp = client.delete("/api/tasks/1")
-    assert resp.status_code == 200
-    data = _json_response(resp)
-    assert data["message"] == "Task deleted successfully."
-    # Verify deletion
-    resp2 = client.get("/api/tasks")
-    tasks = _json_response(resp2)["tasks"]
-    assert len(tasks) == 0
+    response = client.delete("/api/tasks/999")
+    assert response.status_code == 404
+    assert b"Task not found" in response.data

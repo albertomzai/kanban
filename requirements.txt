@@ -1,2 +1,6 @@
+"""
+Dependencies for the Kanban backend.
+"""
 Flask
 Flask-Cors
+pytest
