@@ -1,6 +1,6 @@
-"""
-Dependencies for the Kanban backend.
-"""
+# Runtime dependencies
 Flask
 Flask-Cors
+
+# Development / testing dependencies
 pytest

@@ -1,19 +1,20 @@
 import json
 import os
-from flask import Flask, request, jsonify, send_from_directory
+from flask import Flask, jsonify, request, send_from_directory, abort
 from flask_cors import CORS
 
-# Ruta al archivo de tareas dentro del paquete
-BASE_DIR = os.path.abspath(os.path.dirname(__file__))
-TASKS_FILE = os.path.join(BASE_DIR, "tasks.json")
-
-app = Flask(__name__, static_folder=os.path.join(BASE_DIR, "static"))
+# ---------------------------------------------------------------------------
+# Configuration and globals
+# ---------------------------------------------------------------------------
+app = Flask(__name__, static_folder="static")
 CORS(app)
 
-# ---------------------------------------------------------------------------
-# Helpers para leer y escribir tareas
-# ---------------------------------------------------------------------------
+# Path to the JSON file that stores tasks. It lives in the project root.
+TASKS_FILE = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "tasks.json"))
 
+# ---------------------------------------------------------------------------
+# Utility functions for task persistence
+# ---------------------------------------------------------------------------
 def _load_tasks():
     if not os.path.exists(TASKS_FILE):
         return []
@@ -21,55 +22,79 @@ def _load_tasks():
         try:
             return json.load(f)
         except json.JSONDecodeError:
+            # Corrupted file – start fresh
             return []
 
 def _save_tasks(tasks):
     with open(TASKS_FILE, "w", encoding="utf-8") as f:
-        json.dump(tasks, f, ensure_ascii=False, indent=2)
+        json.dump(tasks, f, indent=2)
 
 # ---------------------------------------------------------------------------
-# Rutas de la API RESTful
+# Helper to find a task by ID
 # ---------------------------------------------------------------------------
-@app.route("/api/tasks", methods=["GET"])
-def get_tasks():
-    return jsonify(_load_tasks()), 200
-
-@app.route("/api/tasks", methods=["POST"])
-def create_task():
-    data = request.get_json(force=True)
-    content = data.get("content")
-    if not content:
-        return jsonify({"error": "Content required"}), 400
-    tasks = _load_tasks()
-    new_id = max([t["id"] for t in tasks], default=0) + 1
-    new_task = {"id": new_id, "content": content, "status": "Por Hacer"}
-    tasks.append(new_task)
-    _save_tasks(tasks)
-    return jsonify(new_task), 201
-
-@app.route("/api/tasks/<int:task_id>", methods=["PUT"])
-def update_task(task_id):
-    data = request.get_json(force=True)
-    tasks = _load_tasks()
+def _find_task(task_id, tasks):
     for t in tasks:
-        if t["id"] == task_id:
-            t.update({k: v for k, v in data.items() if k in ["content", "status"]})
-            _save_tasks(tasks)
-            return jsonify(t), 200
-    return jsonify({"error": "Task not found"}), 404
+        if t.get("id") == task_id:
+            return t
+    return None
 
-@app.route("/api/tasks/<int:task_id>", methods=["DELETE"])
+# ---------------------------------------------------------------------------
+# Routes
+# ---------------------------------------------------------------------------
+@app.route('/')
+def index():
+    """Serve the single‑page application front‑end."""
+    return send_from_directory(app.static_folder, 'index.html')
+
+# API: GET all tasks
+@app.route('/api/tasks', methods=['GET'])
+def get_tasks():
+    tasks = _load_tasks()
+    return jsonify(tasks)
+
+# API: POST create new task
+@app.route('/api/tasks', methods=['POST'])
+def create_task():
+    data = request.get_json() or {}
+    content = data.get('content', '').strip()
+    if not content:
+        abort(400, description='Content is required')
+    tasks = _load_tasks()
+    new_id = max([t['id'] for t in tasks], default=0) + 1
+    task = {
+        'id': new_id,
+        'content': content,
+        'state': data.get('state', 'Por Hacer')
+    }
+    tasks.append(task)
+    _save_tasks(tasks)
+    return jsonify(task), 201
+
+# API: PUT update task
+@app.route('/api/tasks/<int:task_id>', methods=['PUT'])
+def update_task(task_id):
+    data = request.get_json() or {}
+    tasks = _load_tasks()
+    task = _find_task(task_id, tasks)
+    if not task:
+        abort(404, description='Task not found')
+    # Update fields if provided
+    content = data.get('content')
+    state = data.get('state')
+    if content is not None:
+        task['content'] = content.strip()
+    if state is not None:
+        task['state'] = state
+    _save_tasks(tasks)
+    return jsonify(task)
+
+# API: DELETE task
+@app.route('/api/tasks/<int:task_id>', methods=['DELETE'])
 def delete_task(task_id):
     tasks = _load_tasks()
-    new_tasks = [t for t in tasks if t["id"] != task_id]
-    if len(new_tasks) == len(tasks):
-        return jsonify({"error": "Task not found"}), 404
-    _save_tasks(new_tasks)
-    return jsonify({"message": "Task deleted"}), 200
-
-# ---------------------------------------------------------------------------
-# Ruta para servir el frontend (index.html)
-# ---------------------------------------------------------------------------
-@app.route("/")
-def index():
-    return send_from_directory(app.static_folder, "index.html")
+    task = _find_task(task_id, tasks)
+    if not task:
+        abort(404, description='Task not found')
+    tasks.remove(task)
+    _save_tasks(tasks)
+    return '', 204
