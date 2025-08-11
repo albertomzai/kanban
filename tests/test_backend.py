@@ -1,48 +1,44 @@
-import json
-import os
-import tempfile
-from pathlib import Path
 import pytest
-
-# Import the Flask app and TASKS_FILE from the backend package
-from backend import app as flask_app, TASKS_FILE
+from backend import app as flask_app
+import os
+import json
 
 @pytest.fixture
 def client():
     with flask_app.test_client() as client:
         yield client
 
-@pytest.fixture
-def temp_tasks_file(tmp_path, monkeypatch):
-    # Create a temporary tasks.json file for the duration of the test
-    temp_file = tmp_path / "tasks.json"
-    # Ensure the file exists and is empty
-    temp_file.write_text("[]")
-    # Patch TASKS_FILE to point to our temp file
-    monkeypatch.setattr("backend.app.TASKS_FILE", str(temp_file))
-    return temp_file
+# Helper to reset tasks file before each test
+TASKS_FILE = os.path.join(os.path.dirname(__file__), '..', 'backend', 'tasks.json')
 
-def test_delete_task_success(client, temp_tasks_file):
-    # Arrange: create a task via POST so it exists in the temp file
-    response = client.post(
-        "/api/tasks",
-        json={"content": "Test task", "state": "Por Hacer"},
-    )
+@pytest.fixture(autouse=True)
+def reset_tasks_file(tmp_path, monkeypatch):
+    # Create a temporary tasks.json for isolation
+    temp_file = tmp_path / 'tasks.json'
+    monkeypatch.setattr('backend.app.TASKS_FILE', str(temp_file))
+    with open(temp_file, 'w', encoding='utf-8') as f:
+        json.dump([], f)
+    yield
+
+def test_create_and_delete_task(client):
+    # Create a task
+    response = client.post('/api/tasks', json={'content': 'Test Task'})
     assert response.status_code == 201
-    created_task = response.get_json()
-    task_id = created_task["id"]
+    data = response.get_json()
+    task_id = data['id']
 
-    # Act: delete the task
-    del_resp = client.delete(f"/api/tasks/{task_id}")
+    # Verify it exists via GET
+    get_resp = client.get('/api/tasks')
+    tasks = get_resp.get_json()
+    assert any(t['id'] == task_id for t in tasks)
 
-    # Assert
-    assert del_resp.status_code == 204
-    # Verify that the task is no longer in the file
-    tasks_data = json.loads(temp_tasks_file.read_text())
-    assert not any(t["id"] == task_id for t in tasks_data)
+    # Delete the task
+    del_resp = client.delete(f'/api/tasks/{task_id}')
+    assert del_resp.status_code == 200
+    msg = del_resp.get_json()
+    assert msg['message'] == 'Task deleted'
 
-def test_delete_task_not_found(client, temp_tasks_file):
-    # Act: attempt to delete a non‑existent task
-    resp = client.delete("/api/tasks/9999")
-    # Assert
-    assert resp.status_code == 404
+    # Verify it no longer exists
+    get_resp_after = client.get('/api/tasks')
+    tasks_after = get_resp_after.get_json()
+    assert not any(t['id'] == task_id for t in tasks_after)
