@@ -1,126 +1,151 @@
-We need markdown doc. Include sections. Use mermaid diagram for architecture: Flask app with routes, tasks_manager module, static SPA. Provide endpoints list. Installation instructions pip install -r requirements.txt run backend.py. Flow of data: create->save->read etc. Let's craft.# Documentación Técnica del Proyecto Kanban Mini‑Trello
+Need produce markdown.# Kanban Mini‑Trello – Documentación Técnica
+
+---
 
 ## Visión General del Proyecto
-Kanban Mini‑Trello es una aplicación ligera que permite gestionar tareas en un tablero Kanban con tres columnas: **Por Hacer**, **En Progreso** y **Hecho**.  
-- **Back‑end**: Flask (Python 3) expone una API REST para CRUD de tareas y sirve la SPA desde el directorio `static`.  
-- **Front‑end**: Una única página HTML (`index.html`) con JavaScript puro que consume la API, renderiza las tarjetas y permite arrastrar/soltar entre columnas.  
-- **Persistencia**: Los datos se guardan en un archivo JSON (`tasks.json`).  
 
-El proyecto incluye pruebas unitarias con `pytest` y una configuración mínima de dependencias (`requirements.txt`).
+Kanban Mini‑Trello es una aplicación web ligera que permite gestionar tareas en un tablero Kanban con tres columnas: **Por Hacer**, **En Progreso** y **Hecho**.  
+El proyecto está dividido en dos partes:
+
+1. **Backend (Flask)** – Expone una API RESTful para crear, leer, actualizar y eliminar tareas. La persistencia se realiza sobre un archivo JSON (`tasks.json`) mediante el módulo `tasks_manager`.  
+2. **Frontend (SPA)** – Un único archivo HTML/JS que consume la API, renderiza las tarjetas en sus columnas correspondientes y permite arrastrar‑soltar para cambiar de estado.
+
+El flujo de trabajo típico es:
+
+- El usuario abre la página (`index.html`), el script hace una llamada `GET /api/tasks` y dibuja las tareas existentes.
+- Al crear una nueva tarea con el botón “Añadir”, se envía un `POST /api/tasks`.  
+- Cuando se arrastra una tarjeta a otra columna, se dispara un `PUT /api/tasks/<id>` para actualizar su estado.  
+- El doble clic sobre la tarjeta abre un campo de edición y actualiza el contenido mediante otro `PUT`.  
+- Se puede eliminar una tarea con un botón (no implementado en el frontend actualmente) que hace un `DELETE /api/tasks/<id>`.
 
 ---
 
 ## Arquitectura del Sistema
 
 ```mermaid
-graph TD
-    A[Cliente Web] -->|HTTP/JSON| B[Flask App]
-    B --> C[Endpoint /api/tasks (GET, POST)]
-    B --> D[Endpoint /api/tasks/<id> (PUT, DELETE)]
-    B --> E[Static Files (index.html, JS, CSS)]
-    C & D --> F[tasks_manager.py] 
-    F --> G[File System: tasks.json]
+flowchart TD
+    subgraph Frontend
+        UI[<b>index.html</b><br/>SPA]
+        API_CALLS["fetch('/api/...')"]
+    end
+
+    subgraph Backend
+        FlaskApp[<b>Flask App (backend.py)</b>]
+        TASKS_JSON[<b>tasks.json</b>]
+        TasksManager["tasks_manager.py"]
+    end
+
+    UI -->|HTTP Requests| FlaskApp
+    FlaskApp -->|Read/Write| TASKS_JSON
+    FlaskApp -->|Helpers| TasksManager
 ```
 
-### Descripción de los componentes
+### Componentes Clave
 
-| Componente | Responsabilidad |
-|------------|-----------------|
-| **Flask App (`backend.py`)** | Maneja las rutas API, valida datos y delega en `tasks_manager`. También sirve la SPA. |
-| **`tasks_manager.py`** | Funciones puras para cargar, guardar, generar IDs y manipular tareas. Facilita pruebas unitarias. |
-| **SPA (`static/index.html`)** | Interfaz de usuario: renderizado de tarjetas, drag‑and‑drop, edición inline y llamadas AJAX a la API. |
-| **Persistencia (`tasks.json`)** | Almacena el estado actual del tablero en disco. |
+| Componente | Responsabilidad | Tecnologías |
+|------------|-----------------|-------------|
+| `backend.py` | Rutas API, validaciones de estado, manejo de errores. | Flask 3.x, Flask‑CORS |
+| `tasks_manager.py` | Carga/guardado y operaciones CRUD sobre la lista de tareas. | Python estándar (`json`, `typing`) |
+| `static/index.html` | SPA con lógica de UI (drag‑and‑drop, edición inline). | HTML5, CSS3, JavaScript ES6 |
 
 ---
 
 ## Endpoints de la API
 
-| Método | Ruta | Descripción | Parámetros de Entrada | Respuesta (ejemplo) |
-|--------|------|-------------|-----------------------|---------------------|
-| `GET` | `/api/tasks` | Lista todas las tareas. | Ninguno | `{ "tasks": [ { "id": 1, "content": "...", "state": "Por Hacer" }, … ] }` |
-| `POST` | `/api/tasks` | Crea una nueva tarea. | `{"content":"texto","state":"Por Hacer"}` | `201 Created`: `{ "id": 2, "content":"texto", "state":"Por Hacer" }` |
-| `PUT` | `/api/tasks/<int:id>` | Actualiza contenido y/o estado de una tarea existente. | `{"content":"nuevo","state":"En Progreso"}` | `200 OK`: `{ "id": 2, "content":"nuevo", "state":"En Progreso" }` |
-| `DELETE` | `/api/tasks/<int:id>` | Elimina la tarea con el ID especificado. | Ninguno | `200 OK`: `{ "message": "Task deleted successfully." }` |
+| Método | Ruta | Parámetros | Cuerpo | Respuesta | Código HTTP |
+|--------|------|------------|--------|-----------|-------------|
+| `GET` | `/api/tasks` | ninguno | ninguno | `{ "tasks": [ {id, content, state}, ... ] }` | 200 |
+| `POST` | `/api/tasks` | ninguno | `{ "content": str, "state": str (opcional) }` | Nueva tarea con ID generado | 201 |
+| `PUT` | `/api/tasks/<int:task_id>` | `task_id` | `{ "content"?: str, "state"?: str }` | Tarea actualizada | 200 |
+| `DELETE` | `/api/tasks/<int:task_id>` | `task_id` | ninguno | `{ "message": "Task deleted successfully." }` | 200 |
 
-> **Nota**: Todos los endpoints aceptan y devuelven JSON; se aplica CORS para permitir llamadas desde el mismo dominio.
+### Ejemplo de Uso
+
+```bash
+# Crear tarea
+curl -X POST http://localhost:5000/api/tasks \
+     -H 'Content-Type: application/json' \
+     -d '{"content":"Revisar PR", "state":"Por Hacer"}'
+
+# Obtener todas las tareas
+curl http://localhost:5000/api/tasks
+
+# Cambiar estado de una tarea
+curl -X PUT http://localhost:5000/api/tasks/1 \
+     -H 'Content-Type: application/json' \
+     -d '{"state":"En Progreso"}'
+
+# Eliminar tarea
+curl -X DELETE http://localhost:5000/api/tasks/1
+```
 
 ---
 
 ## Instrucciones de Instalación y Ejecución
 
-1. **Clonar el repositorio (o copiar los archivos)**  
-   ```bash
-   git clone <url_del_repositorio>
-   cd kanban-mini-trello
-   ```
+```bash
+# 1. Clonar el repositorio
+git clone <URL_DEL_REPOSITORIO>
+cd kanban-mini-trello
 
-2. **Crear un entorno virtual** *(opcional pero recomendado)*  
-   ```bash
-   python3 -m venv .venv
-   source .venv/bin/activate   # Windows: .\.venv\Scripts\activate
-   ```
+# 2. Crear entorno virtual (opcional pero recomendado)
+python -m venv .venv
+source .venv/bin/activate   # Windows: .\.venv\Scripts\activate
 
-3. **Instalar dependencias**  
-   ```bash
-   pip install -r requirements.txt
-   ```
+# 3. Instalar dependencias
+pip install -r requirements.txt
 
-4. **Inicializar el archivo de tareas (solo la primera ejecución)**  
-   El script `backend.py` crea automáticamente `tasks.json` si no existe.
+# 4. Iniciar el servidor Flask
+export FLASK_APP=backend.py
+flask run --host=0.0.0.0 --port=5000   # o simplemente: python backend.py
 
-5. **Ejecutar el servidor Flask**  
-   ```bash
-   python backend.py
-   ```
-   Por defecto, el servidor escucha en `http://0.0.0.0:5000/`.
+# 5. Acceder en navegador
+open http://localhost:5000
+```
 
-6. **Acceder a la aplicación**  
-   Abrir un navegador y navegar a `http://localhost:5000/`. La SPA se cargará automáticamente.
+### Pruebas Unitarias
 
-7. **Ejecutar pruebas unitarias** *(opcional)*  
-   ```bash
-   pytest tests/test_backend.py
-   ```
+```bash
+pytest tests/test_backend.py
+```
+
+Las pruebas usan un archivo temporal para evitar modificar `tasks.json` real.
 
 ---
 
 ## Flujo de Datos Clave
 
-1. **Creación de una tarea**
-   - El usuario escribe texto y pulsa “Añadir”.
-   - JavaScript envía `POST /api/tasks` con JSON `{content, state:"Por Hacer"}`.
-   - Flask valida el contenido y estado → genera ID → llama a `tasks_manager.save_tasks`.
-   - Respuesta contiene la tarea creada; JS añade una tarjeta al DOM.
+1. **Carga Inicial**  
+   - El frontend llama a `/api/tasks`.  
+   - Flask lee `tasks.json`, devuelve la lista y el cliente la renderiza en las columnas correspondientes.
 
-2. **Actualización de estado (drag‑and‑drop)**
-   - Al soltar una tarjeta en otra columna, JS captura el nuevo estado.
-   - Envía `PUT /api/tasks/<id>` con `{state: nuevoEstado}`.
-   - Flask actualiza la tarea y persiste → respuesta vacía; JS mueve la tarjeta.
+2. **Creación**  
+   - Usuario escribe contenido y pulsa “Añadir”.  
+   - Se envía `POST /api/tasks` con JSON `{content, state}`.  
+   - Backend valida, genera un ID único (`generate_task_id`) y guarda el nuevo objeto en la lista.  
+   - Devuelve el objeto creado; el frontend añade una tarjeta al DOM.
 
-3. **Edición inline de contenido**
-   - Doble clic convierte la tarjeta en un `<input>`.
-   - Al perder foco o pulsar Enter, se envía `PUT /api/tasks/<id>` con `{content: nuevoTexto}`.
-   - Flask actualiza y persiste; JS reemplaza el input por la tarjeta actualizada.
+3. **Actualización**  
+   - Arrastrar‑soltar o doble clic dispara `PUT /api/tasks/<id>`.  
+   - Backend busca la tarea (`find_task_by_id`), actualiza los campos recibidos y persiste la lista.  
+   - El cliente actualiza el estado visual de la tarjeta.
 
-4. **Eliminación de una tarea**
-   - Se dispara desde un botón (no incluido en el código base pero previsto por el plan).
-   - JS envía `DELETE /api/tasks/<id>`.
-   - Flask elimina la entrada y responde con mensaje; JS remueve la tarjeta del DOM.
-
-5. **Carga inicial del tablero**
-   - Al cargar la página, JS hace `GET /api/tasks` para poblar las columnas.
-   - La respuesta se procesa en `renderTasks`, que construye tarjetas y las inserta en sus columnas correspondientes.
+4. **Eliminación**  
+   - Se envía `DELETE /api/tasks/<id>`.  
+   - Backend elimina la entrada (`delete_task_by_id`) y devuelve un mensaje de éxito.  
+   - El frontend debe remover la tarjeta del DOM (no implementado en el código actual).
 
 ---
 
-## Extensiones Futuras (de acuerdo al plan de construcción)
+## Extensiones Futuras
 
-- **Botón de eliminación**: Añadir un icono “X” a cada tarjeta que invoque el endpoint DELETE.  
-- **Persistencia más robusta**: Migrar a una base de datos SQLite o PostgreSQL para concurrencia y escalabilidad.  
-- **Autenticación**: JWT o sesiones para usuarios multi‑usuario.  
-- **Test de integración front‑end**: Utilizar Cypress o Playwright.
+| Área | Posible Mejora | Justificación |
+|------|----------------|---------------|
+| **Persistencia** | Migrar a una base de datos relacional (SQLite/PostgreSQL) o NoSQL (MongoDB). | Escalabilidad, concurrencia y consultas más complejas. |
+| **Autenticación** | Añadir JWT/Session para usuarios autenticados. | Permitir tableros privados por usuario. |
+| **WebSocket** | Implementar comunicación en tiempo real con `Flask-SocketIO`. | Actualizaciones instantáneas entre clientes sin recargar la página. |
+| **Frontend Framework** | Migrar a React/Vue/Angular. | Mejor manejo de estado, componentes reutilizables y pruebas unitarias del UI. |
+| **Pruebas End‑to‑End** | Integrar Cypress o Playwright. | Validar flujos completos (creación → arrastre → eliminación). |
+| **CI/CD** | Configurar GitHub Actions / GitLab CI para linting, tests y despliegue automático. | Garantizar calidad continua. |
 
 ---
-
-### Contacto
-Para dudas, mejoras o contribuciones, abre un issue en el repositorio GitHub correspondiente.
