@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kanban Mini-Trello</title>
+    <style>
+        :root {
+            --color-bg: #f4f6f8;
+            --color-card: #ffffff;
+            --color-primary: #0079bf;
+            --color-success: #00b894;
+            --color-danger: #d63031;
+            --color-text: #333333;
+        }
+        body {
+            margin: 0;
+            font-family: Arial, Helvetica, sans-serif;
+            background-color: var(--color-bg);
+            color: var(--color-text);
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+            padding-top: 20px;
+        }
+        .board {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            width: 90%;
+            max-width: 1200px;
+        }
+        .column {
+            background-color: #e2e4e6;
+            border-radius: 5px;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            min-height: 400px;
+        }
+        .column h2 {
+            margin-top: 0;
+            font-size: 1.2rem;
+            text-align: center;
+        }
+        .cards {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            overflow-y: auto;
+            padding-bottom: 10px;
+        }
+        .card {
+            background-color: var(--color-card);
+            border-radius: 3px;
+            padding: 8px;
+            cursor: grab;
+            box-shadow: 0 1px 2px rgba(0,0,0,.15);
+            user-select: none;
+        }
+        .card[draggable="true"] {
+            opacity: 0.9;
+        }
+        .add-task {
+            margin-top: auto;
+            display: flex;
+            gap: 5px;
+        }
+        .add-task input {
+            flex-grow: 1;
+            padding: 5px;
+            border: 1px solid #ccc;
+            border-radius: 3px;
+        }
+        .add-task button {
+            padding: 5px 10px;
+            background-color: var(--color-primary);
+            color: white;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        .message {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 10px 15px;
+            border-radius: 4px;
+            color: white;
+            display: none;
+            z-index: 1000;
+        }
+        .message.success { background-color: var(--color-success); }
+        .message.error { background-color: var(--color-danger); }
+    </style>
+</head>
+<body>
+    <div class="board">
+        <section class="column" data-status="Por Hacer">
+            <h2>Por Hacer</h2>
+            <div class="cards" id="col-por-hacer"></div>
+            <form class="add-task" onsubmit="return addTask(event)">
+                <input type="text" id="new-task-input" placeholder="Nueva tarea..." required aria-label="Nueva tarea">
+                <button type="submit">Añadir</button>
+            </form>
+        </section>
+        <section class="column" data-status="En Progreso">
+            <h2>En Progreso</h2>
+            <div class="cards" id="col-en-progreso"></div>
+        </section>
+        <section class="column" data-status="Hecho">
+            <h2>Hecho</h2>
+            <div class="cards" id="col-hecho"></div>
+        </section>
+    </div>
+    <div id="message" class="message"></div>
+
+    <script>
+        const API_URL = '/api/tasks';
+        const statusMap = {
+            'Por Hacer': 'col-por-hacer',
+            'En Progreso': 'col-en-progreso',
+            'Hecho': 'col-hecho'
+        };
+
+        // Utility for showing messages
+        function showMessage(text, type='success') {
+            const msg = document.getElementById('message');
+            msg.textContent = text;
+            msg.className = `message ${type}`;
+            msg.style.display = 'block';
+            setTimeout(()=>msg.style.display='none', 3000);
+        }
+
+        // Fetch all tasks and render
+        async function loadTasks() {
+            try {
+                const res = await fetch(API_URL);
+                if (!res.ok) throw new Error('Error al cargar tareas');
+                const tasks = await res.json();
+                tasks.forEach(renderTask);
+            } catch (e) {
+                console.error(e); showMessage('No se pudieron cargar las tareas', 'error');
+            }
+        }
+
+        // Render a single task card
+        function renderTask(task) {
+            const colId = statusMap[task.status];
+            const container = document.getElementById(colId);
+            if (!container) return;
+            const card = document.createElement('div');
+            card.className = 'card';
+            card.draggable = true;
+            card.dataset.id = task.id;
+
+            // Editable content
+            const span = document.createElement('span');
+            span.textContent = task.content;
+            span.tabIndex = 0;
+            span.addEventListener('click', () => {
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.value = task.content;
+                input.className = 'edit-input';
+                card.replaceChild(input, span);
+                input.focus();
+                input.addEventListener('blur', () => finishEdit(task.id, input.value));
+                input.addEventListener('keydown', e=>{ if(e.key==='Enter'){input.blur();} });
+            });
+
+            card.appendChild(span);
+            container.appendChild(card);
+
+            // Drag events
+            card.addEventListener('dragstart', (e)=>{
+                e.dataTransfer.setData('text/plain', task.id);
+                e.currentTarget.style.opacity = '0.5';
+            });
+            card.addEventListener('dragend', (e)=>{e.currentTarget.style.opacity='1';});
+        }
+
+        async function finishEdit(id, newContent) {
+            try {
+                const res = await fetch(`${API_URL}/${id}`, {
+                    method: 'PUT',
+                    headers:{'Content-Type':'application/json'},
+                    body: JSON.stringify({content:newContent})
+                });
+                if (!res.ok) throw new Error('Error al actualizar');
+                const updated = await res.json();
+                // Update DOM
+                const card = document.querySelector(`.card[data-id="${id}"]`);
+                if(card){
+                    card.firstChild.textContent = updated.content;
+                }
+                showMessage('Tarea actualizada');
+            } catch(e){ console.error(e); showMessage('Error al actualizar', 'error'); }
+        }
+
+        async function addTask(event) {
+            event.preventDefault();
+            const input = document.getElementById('new-task-input');
+            const content = input.value.trim();
+            if (!content) return;
+            try {
+                const res = await fetch(API_URL, {
+                    method: 'POST',
+                    headers:{'Content-Type':'application/json'},
+                    body: JSON.stringify({content, status:'Por Hacer'})
+                });
+                if (!res.ok) throw new Error('Error al crear');
+                const task = await res.json();
+                renderTask(task);
+                input.value='';
+                showMessage('Tarea añadida');
+            } catch(e){ console.error(e); showMessage('Error al añadir', 'error'); }
+        }
+
+        // Drag over columns
+        document.querySelectorAll('.column').forEach(col=>{
+            col.addEventListener('dragover', e=>{e.preventDefault();});
+            col.addEventListener('drop', async e=>{
+                e.preventDefault();
+                const id = e.dataTransfer.getData('text/plain');
+                const status = col.dataset.status;
+                try {
+                    const res = await fetch(`${API_URL}/${id}`, {
+                        method: 'PUT',
+                        headers:{'Content-Type':'application/json'},
+                        body: JSON.stringify({status})
+                    });
+                    if (!res.ok) throw new Error('Error al mover');
+                    // Move card in DOM
+                    const card = document.querySelector(`.card[data-id="${id}"]`);
+                    if(card){
+                        col.querySelector('.cards').appendChild(card);
+                    }
+                    showMessage('Tarea movida a '+status);
+                } catch(e){ console.error(e); showMessage('Error al mover', 'error'); }
+            });
+        });
+
+        // Initialize
+        loadTasks();
+    </script>
+</body>
+</html>
