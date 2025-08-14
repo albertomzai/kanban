@@ -1,0 +1,78 @@
+{
+  "api_contract": {
+    "ruta": "/api/tasks",
+    "metodo": "GET",
+    "descripcion": "Devuelve todas las tareas existentes.",
+    "respuesta_esperada": [
+      {
+        "id": "integer",
+        "content": "string",
+        "state": "string (Valores: 'Por Hacer', 'En Progreso', 'Hecho')"
+      }
+    ]
+  },
+  "api_contract_post": {
+    "ruta": "/api/tasks",
+    "metodo": "POST",
+    "descripcion": "Crea una nueva tarea.",
+    "parametros_entrada": {
+      "content": "string",
+      "state": "string (Valores: 'Por Hacer')"
+    },
+    "respuesta_esperada": {
+      "id": "integer",
+      "content": "string",
+      "state": "string"
+    }
+  },
+  "api_contract_put": {
+    "ruta": "/api/tasks/<id>",
+    "metodo": "PUT",
+    "descripcion": "Actualiza el contenido o estado de una tarea.",
+    "parametros_entrada": {
+      "content": "string (opcional)",
+      "state": "string (opcional, Valores: 'Por Hacer', 'En Progreso', 'Hecho')"
+    },
+    "respuesta_esperada": {
+      "id": "integer",
+      "content": "string",
+      "state": "string"
+    }
+  },
+  "api_contract_delete": {
+    "ruta": "/api/tasks/<id>",
+    "metodo": "DELETE",
+    "descripcion": "Elimina una tarea.",
+    "respuesta_esperada": {
+      "message": "string"
+    }
+  },
+  "plan": [
+    {
+      "etapa": "backend",
+      "tareas": [
+        "Inicializar un proyecto Flask con la estructura de directorios 'backend/' y 'frontend/'.",
+        "Crear el archivo 'backend/__init__.py' que defina una factory `create_app`.",
+        "Configurar en `create_app` el cargado del JSON de tareas desde 'tasks.json' al iniciar la app.",
+        "Implementar un Blueprint 'tasks_bp' en 'backend/routes.py' con los endpoints GET, POST, PUT y DELETE según el api_contract.",
+        "Añadir lógica para leer y escribir el archivo 'tasks.json', garantizando concurrencia segura y manejo de errores.",
+        "Validar que los estados recibidos en POST/PUT sean uno de los valores permitidos.",
+        "Definir un esquema de respuesta JSON consistente con los contratos anteriores.",
+        "Crear el fichero `requirements.txt` incluyendo 'Flask'.",
+        "Configurar la carpeta 'frontend/' como carpeta estática servida por Flask mediante `app.static_folder`.",
+        "Agregar en 'backend/app.py' la inicialización y ejecución del servidor usando la factory."
+      ]
+    },
+    {
+      "etapa": "frontend",
+      "tareas": [
+        "Crear el archivo 'frontend/index.html' con una estructura de tres columnas verticales etiquetadas 'Por Hacer', 'En Progreso' y 'Hecho'.",
+        "Incorporar un formulario simple para añadir nuevas tarjetas a la columna 'Por Hacer', enviando datos vía fetch POST al endpoint '/api/tasks'.",
+        "Implementar la visualización de las tareas cargadas mediante una llamada GET inicial al backend.",
+        "Permitir que el texto de cada tarjeta sea editable en línea, enviando un PUT cuando se finalice la edición.",
+        "Agregar funcionalidad drag-and-drop usando HTML5 DragEvent API para mover tarjetas entre columnas, actualizando su estado con una petición PUT.",
+        "Incluir manejo básico de errores y feedback visual al usuario en caso de fallos de la API."
+      ]
+    }
+  ]
+}
