@@ -1,3 +1,5 @@
-Flask
-Flask-Cors
-pytest
+# Core dependencies
+Flask==2.3.3
+
+# Testing dependency
+pytest==7.4.0
