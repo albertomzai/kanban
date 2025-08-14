@@ -1,25 +1,72 @@
 {
   "api_contract": {
-    "ruta": "/api/tasks/<id>",
-    "metodo": "DELETE",
-    "descripcion": "Endpoint para eliminar una tarea existente.",
-    "parametros_entrada": {
-      "id": "integer"
+    "ruta": "/api/tasks",
+    "metodo_get": {
+      "descripcion": "Obtiene todas las tareas existentes.",
+      "respuesta_esperada": [
+        {
+          "id": "integer",
+          "content": "string",
+          "state": "string (Valores: 'Por Hacer', 'En Progreso', 'Hecho')"
+        }
+      ]
     },
-    "respuesta_esperada": {}
+    "metodo_post": {
+      "descripcion": "Crea una nueva tarea con estado inicial 'Por Hacer'.",
+      "parametros_entrada": {
+        "content": "string"
+      },
+      "respuesta_esperada": {
+        "id": "integer",
+        "content": "string",
+        "state": "string"
+      }
+    },
+    "metodo_put": {
+      "descripcion": "Actualiza el contenido o estado de una tarea existente.",
+      "parametros_entrada": {
+        "content": "string (opcional)",
+        "state": "string (opcional, Valores: 'Por Hacer', 'En Progreso', 'Hecho')"
+      },
+      "respuesta_esperada": {
+        "id": "integer",
+        "content": "string",
+        "state": "string"
+      }
+    },
+    "metodo_delete": {
+      "descripcion": "Elimina una tarea existente.",
+      "respuesta_esperada": {
+        "message": "string (confirmación de eliminación)"
+      }
+    }
   },
   "plan": [
     {
       "etapa": "backend",
       "tareas": [
-        "Crear un endpoint DELETE para eliminar la tarea existente con el ID especificado."
+        "Crear la carpeta 'backend' y dentro un archivo '__init__.py' que defina una factory 'create_app'.",
+        "En 'backend/__init__.py', configurar Flask para servir archivos estáticos desde '../frontend'.",
+        "Agregar un Blueprint en 'backend/routes.py' que contenga los endpoints '/api/tasks' (GET, POST), '/api/tasks/<int:id>' (PUT, DELETE).",
+        "Implementar la lógica de negocio: cargar tareas desde 'tasks.json', asignar IDs incrementales y persistir cambios.",
+        "Añadir validación de datos de entrada usando funciones auxiliares para asegurar tipos y valores permitidos.",
+        "Incluir manejo de excepciones y respuestas JSON con códigos de estado adecuados.",
+        "Crear un archivo 'requirements.txt' que liste 'Flask'.",
+        "Escribir el punto de entrada 'app.py' en la raíz que importe 'create_app' y lance la aplicación.",
+        "Configurar pruebas unitarias en 'tests/test_backend.py' usando PyTest y Flask test client para cubrir los cuatro endpoints.",
+        "Documentar la API REST con comentarios docstring y generar un README parcial con ejemplos de uso."
       ]
     },
     {
       "etapa": "frontend",
       "tareas": [
-        "Crear un botón para eliminar la tarea.",
-        "Implementar el código JavaScript para hacer una solicitud AJAX al backend y actualizar dinámicamente el área de resultados en 'index.html' después de eliminar la tarea."
+        "Crear el archivo 'frontend/index.html' que incluya la estructura básica: encabezado, tres columnas con títulos 'Por Hacer', 'En Progreso', 'Hecho'.",
+        "Añadir un formulario o botón para crear nuevas tarjetas en la columna 'Por Hacer' y capturar el texto del usuario.",
+        "Implementar la representación de cada tarea como una tarjeta HTML dentro de su columna correspondiente.",
+        "Agregar lógica JavaScript inline (o minimal) que permita editar el contenido de una tarjeta al hacer clic, enviando un PUT a '/api/tasks/<id>'.",
+        "Integrar drag-and-drop usando la API DragEvent para mover tarjetas entre columnas y actualizar su estado mediante PUT.",
+        "Incluir manejo de errores simples: mostrar mensajes en la interfaz cuando las llamadas a la API fallen.",
+        "Utilizar CSS Grid o Flexbox para alinear las tres columnas verticalmente y hacer que el layout sea responsivo."
       ]
     }
   ]
