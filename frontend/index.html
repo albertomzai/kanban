@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<title>Kanban Mini-Trello</title>
+<style>
+  body{font-family:sans-serif;margin:0;padding:20px;background:#f4f4f4;}
+  .board{display:flex;gap:10px;justify-content:center;}
+  .column{background:white;border-radius:5px;width:300px;padding:10px;box-shadow:0 2px 4px rgba(0,0,0,.1);}
+  .column h3{text-align:center;margin-top:0;}
+  .card{background:#e2e4e6;margin-bottom:8px;padding:8px;border-radius:3px;cursor:pointer;user-select:none;}
+  #new-task-form{margin-top:10px;display:flex;gap:5px;}
+  #new-task-input{flex:1;padding:5px;}
+</style>
+</head>
+<body>
+<h1>Kanban Mini-Trello</h1>
+<div class="board">
+  <div class="column" data-state="Por Hacer"><h3>Por Hacer</h3><ul id="por-hacer"></ul></div>
+  <div class="column" data-state="En Progreso"><h3>En Progreso</h3><ul id="en-progreso"></ul></div>
+  <div class="column" data-state="Hecho"><h3>Hecho</h3><ul id="hecho"></ul></div>
+</div>
+<form id="new-task-form">
+  <input type="text" id="new-task-input" placeholder="Nueva tarea" required/>
+  <button type="submit">Añadir</button>
+</form>
+<script>
+const apiBase='/api/tasks';
+async function fetchTasks(){const res=await fetch(apiBase);return await res.json();}
+function renderTasks(tasks){document.querySelectorAll('.column ul').forEach(ul=>ul.innerHTML='');tasks.forEach(t=>{const li=document.createElement('li');li.className='card';li.dataset.id=t.id;li.textContent=t.content;li.onclick=()=>editTask(t);li.draggable=true;li.ondragstart=e=>e.dataTransfer.setData('text/plain',t.id);li.ondrop=async e=>{e.preventDefault();const targetState=this.parentElement.dataset.state;if(targetState!==t.state){await updateTask(t.id,{state:targetState});fetchAndRender();}};li.ondragover=e=>e.preventDefault();document.querySelector(`ul[data-state="${t.state}"]`).appendChild(li);});}
+async function editTask(task){const newContent=prompt('Editar contenido',task.content);if(newContent!==null){await updateTask(task.id,{content:newContent});fetchAndRender();}}
+async function updateTask(id,changes){await fetch(`${apiBase}/${id}`,{method:'PUT',headers:{"Content-Type":"application/json"},body:JSON.stringify(changes)});} 
+async function deleteTask(id){await fetch(`${apiBase}/${id}`,{method:'DELETE'});fetchAndRender();}
+async function addTask(content){await fetch(apiBase,{method:'POST',headers:{"Content-Type":"application/json"},body:JSON.stringify({content})});fetchAndRender();}
+async function fetchAndRender(){const tasks=await fetchTasks();renderTasks(tasks);} 
+document.getElementById('new-task-form').addEventListener('submit',e=>{e.preventDefault();const input=document.getElementById('new-task-input');if(input.value.trim()){addTask(input.value);input.value='';}});
+fetchAndRender();
+</script>
+</body>
+</html>
