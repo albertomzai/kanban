@@ -1,62 +1,78 @@
-# backend/routes.py
 import json
-from flask import Blueprint, request, jsonify, current_app
-import os
+from flask import Blueprint, request, jsonify, current_app, abort
 
-tasks_bp = Blueprint('tasks', __name__, url_prefix='/api/tasks')
-DATA_FILE = os.path.join(os.path.dirname(__file__), 'tasks.json')
+tasks_bp = Blueprint('tasks', __name__)
 
-# Helper to load and save tasks
+ALLOWED_STATUSES = ['Por Hacer', 'En Progreso', 'Hecho']
 
-def _load_tasks():
-    if not os.path.exists(DATA_FILE):
-        return []
-    with open(DATA_FILE, 'r', encoding='utf-8') as f:
-        return json.load(f)
+def _get_next_id(tasks):
+    return max((task.get('id', 0) for task in tasks), default=0) + 1
 
-def _save_tasks(tasks):
-    with open(DATA_FILE, 'w', encoding='utf-8') as f:
-        json.dump(tasks, f, ensure_ascii=False, indent=2)
-
-@tasks_bp.route('', methods=['GET'])
+@tasks_bp.route('/tasks', methods=['GET'])
 def get_tasks():
-    tasks = _load_tasks()
-    return jsonify(tasks), 200
+    tasks = current_app.config['TASKS']
+    return jsonify(tasks)
 
-@tasks_bp.route('', methods=['POST'])
+@tasks_bp.route('/tasks', methods=['POST'])
 def create_task():
-    data = request.get_json(force=True)
-    content = data.get('content', '').strip()
-    if not content:
-        return jsonify({'error': 'Content required'}), 400
-    tasks = _load_tasks()
-    new_id = max([t['id'] for t in tasks], default=0) + 1
-    task = {'id': new_id, 'content': content, 'state': 'Por Hacer'}
-    tasks.append(task)
-    _save_tasks(tasks)
-    return jsonify(task), 201
-
-@tasks_bp.route('/<int:task_id>', methods=['PUT'])
-def update_task(task_id):
-    data = request.get_json(force=True)
-    tasks = _load_tasks()
-    task = next((t for t in tasks if t['id'] == task_id), None)
-    if not task:
-        return jsonify({'error': 'Task not found'}), 404
+    data = request.get_json() or {}
     content = data.get('content')
-    state = data.get('state')
-    if content is not None:
-        task['content'] = content.strip()
-    if state in ['Por Hacer', 'En Progreso', 'Hecho']:
-        task['state'] = state
-    _save_tasks(tasks)
-    return jsonify(task), 200
+    if not content:
+        abort(400, description='Content is required')
 
-@tasks_bp.route('/<int:task_id>', methods=['DELETE'])
+    status = data.get('status', 'Por Hacer')
+    if status not in ALLOWED_STATUSES:
+        abort(400, description=f'Status must be one of {ALLOWED_STATUSES}')
+
+    tasks = current_app.config['TASKS']
+    new_task = {
+        'id': _get_next_id(tasks),
+        'content': content,
+        'status': status
+    }
+    tasks.append(new_task)
+    try:
+        _save_tasks(current_app.config['TASKS_FILE'], tasks)
+    except Exception as e:
+        abort(500, description=str(e))
+
+    return jsonify(new_task), 201
+
+@tasks_bp.route('/tasks/<int:task_id>', methods=['PUT'])
+def update_task(task_id):
+    data = request.get_json() or {}
+    tasks = current_app.config['TASKS']
+    task = next((t for t in tasks if t.get('id') == task_id), None)
+    if not task:
+        abort(404, description='Task not found')
+
+    content = data.get('content', task['content'])
+    status = data.get('status', task['status'])
+
+    if status not in ALLOWED_STATUSES:
+        abort(400, description=f'Status must be one of {ALLOWED_STATUSES}')
+
+    task['content'] = content
+    task['status'] = status
+
+    try:
+        _save_tasks(current_app.config['TASKS_FILE'], tasks)
+    except Exception as e:
+        abort(500, description=str(e))
+
+    return jsonify(task)
+
+@tasks_bp.route('/tasks/<int:task_id>', methods=['DELETE'])
 def delete_task(task_id):
-    tasks = _load_tasks()
-    new_tasks = [t for t in tasks if t['id'] != task_id]
-    if len(new_tasks) == len(tasks):
-        return jsonify({'error': 'Task not found'}), 404
-    _save_tasks(new_tasks)
-    return '', 204
+    tasks = current_app.config['TASKS']
+    task_index = next((i for i, t in enumerate(tasks) if t.get('id') == task_id), None)
+    if task_index is None:
+        abort(404, description='Task not found')
+
+    deleted_task = tasks.pop(task_index)
+    try:
+        _save_tasks(current_app.config['TASKS_FILE'], tasks)
+    except Exception as e:
+        abort(500, description=str(e))
+
+    return jsonify(deleted_task), 200
