@@ -1,17 +1,19 @@
-import os
+"""Package backend – factory for the Flask application."""
 
-from flask import Flask
+from flask import Flask, Blueprint
 
-def create_app():
-    """Create and configure the Flask application."""
+_bp = Blueprint("api", __name__, url_prefix="/api")
+
+def create_app() -> Flask:
+    """Create and configure a Flask application instance.
+
+    Returns:
+        Flask: The configured Flask app.
+    """
     app = Flask(__name__, static_folder="../frontend", static_url_path="")
 
     # Register API blueprint
-    from .routes import api_bp
-    app.register_blueprint(api_bp, url_prefix="/api")
-
-    @app.route("/")
-    def index():
-        return app.send_static_file("index.html")
+    from . import routes  # noqa: F401
+    app.register_blueprint(routes.api_bp)
 
     return app
