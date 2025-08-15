@@ -1,0 +1,81 @@
+{
+  "api_contract": {
+    "ruta": "/api/tasks",
+    "metodo": "GET, POST, PUT, DELETE",
+    "descripcion": "Gestión completa de tareas Kanban.",
+    "parametros_entrada_POST": {
+      "content": "string",
+      "state": "string (Valores: 'Por Hacer', 'En Progreso', 'Hecho')"
+    },
+    "parametros_entrada_PUT": {
+      "id": "integer",
+      "content": "string (opcional)",
+      "state": "string (opcional, Valores: 'Por Hacer', 'En Progreso', 'Hecho')"
+    },
+    "respuesta_GET": [
+      {
+        "id": "integer",
+        "content": "string",
+        "state": "string"
+      }
+    ],
+    "respuesta_POST": {
+      "id": "integer",
+      "content": "string",
+      "state": "string"
+    },
+    "respuesta_PUT": {
+      "id": "integer",
+      "content": "string",
+      "state": "string"
+    },
+    "respuesta_DELETE": {
+      "message": "string"
+    }
+  },
+  "contrato_qa_e2e": {
+    "add_task_button": "btn-add-task",
+    "task_input_field": "input-new-task",
+    "column_por_hacer": "col-por-hacer",
+    "column_en_progreso": "col-en-progreso",
+    "column_hecho": "col-hecho",
+    "task_card_prefix": "task-card-"
+  },
+  "plan": [
+    {
+      "etapa": "backend",
+      "tareas": [
+        "Crear el archivo requirements.txt con las dependencias 'Flask' y 'pytest'.",
+        "Crear el archivo pytest.ini en la raíz con contenido '[pytest]\\npythonpath = .'",
+        "Inicializar un paquete Python llamado 'backend' con __init__.py que exponga una factory create_app.",
+        "Dentro de backend, crear un módulo routes.py que defina los endpoints GET /api/tasks, POST /api/tasks, PUT /api/tasks/<int:id> y DELETE /api/tasks/<int:id> usando Flask Blueprint.",
+        "Implementar la lógica de carga y guardado de tareas en un archivo 'tasks.json' ubicado en el directorio raíz del proyecto, con funciones helper para leer y escribir JSON.",
+        "Configurar la aplicación Flask para servir archivos estáticos desde '../frontend'.",
+        "Crear app.py en la raíz que importe create_app desde backend y ejecute la aplicación si __name__ == '__main__'.",
+        "Escribir pruebas unitarias en tests/test_backend.py que verifiquen los cuatro endpoints usando el test client de Flask.",
+        "Configurar las rutas para devolver respuestas JSON con los esquemas definidos en api_contract."
+      ]
+    },
+    {
+      "etapa": "frontend",
+      "tareas": [
+        "Crear frontend/index.html como una SPA con tres columnas verticales etiquetadas 'Por Hacer', 'En Progreso' y 'Hecho'.",
+        "Incluir un botón con id 'btn-add-task' y un campo de entrada con id 'input-new-task' para crear nuevas tareas.",
+        "Implementar tarjetas de tarea que se generen dinámicamente en cada columna, asignando a cada tarjeta un atributo data-testid compuesto por el prefijo 'task-card-' y su id.",
+        "Añadir manejadores JavaScript para: crear tarea (POST), editar contenido al hacer doble clic (PUT), eliminar (DELETE) y arrastrar/soltar tarjetas entre columnas usando la API Drag and Drop nativa.",
+        "Al mover una tarjeta, enviar un PUT a /api/tasks/<id> con el nuevo estado basado en la columna destino.",
+        "Utilizar fetch para todas las llamadas al backend y actualizar el DOM según la respuesta.",
+        "Incluir estilos CSS básicos (Flexbox o Grid) dentro de <style> en index.html para disposición de columnas y tarjetas."
+      ]
+    },
+    {
+      "etapa": "e2e",
+      "tareas": [
+        "Crear un directorio cypress/e2e con un archivo test.cy.js que abra la página principal, añada una tarea, edite su texto, mueva la tarjeta a 'En Progreso', y luego elimine la tarea.",
+        "Usar los data-testid definidos en contrato_qa_e2e para localizar elementos durante las pruebas.",
+        "Configurar Cypress con baseUrl apuntando al servidor Flask local (por ejemplo http://localhost:5000).",
+        "Añadir aserciones que verifiquen el contenido de la tarjeta después de cada operación y que el estado se refleje correctamente en la columna correspondiente."
+      ]
+    }
+  ]
+}
