@@ -1,25 +1,16 @@
+import os
+
 from flask import Flask
 
-def create_app():
-    """Factory function to create and configure the Flask application."""
-    app = Flask(__name__, static_folder='../frontend', static_url_path='')
+def create_app() -> Flask:
+    """Create and configure a new Flask application instance."""
+    app = Flask(__name__, static_folder=os.path.join(os.path.dirname(__file__), '..', 'frontend'), static_url_path='')
 
-    # Register blueprints
+    # Register the tasks blueprint
     from .routes import tasks_bp
-    app.register_blueprint(tasks_bp, url_prefix='/api')
-
-    @app.route('/')
-    def index():
-        """Serve the frontend index.html file."""
-        return app.send_static_file('index.html')
-
-    # Error handlers
-    @app.errorhandler(404)
-    def not_found(error):
-        return {'error': 'Resource not found'}, 404
-
-    @app.errorhandler(400)
-    def bad_request(error):
-        return {'error': str(error)}, 400
+    app.register_blueprint(tasks_bp)
 
     return app
+
+# Create a default app instance for testing and convenience.
+app = create_app()
