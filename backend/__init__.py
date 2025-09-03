@@ -1,19 +1,29 @@
-"""Package backend – factory for the Flask application."""
+import os
 
-from flask import Flask, Blueprint
+from flask import Flask, send_from_directory
 
-_bp = Blueprint("api", __name__, url_prefix="/api")
 
 def create_app() -> Flask:
-    """Create and configure a Flask application instance.
+    """Factory que crea y configura la aplicación Flask."""
 
-    Returns:
-        Flask: The configured Flask app.
-    """
-    app = Flask(__name__, static_folder="../frontend", static_url_path="")
+    app = Flask(__name__, static_folder=os.path.join(os.path.dirname(__file__), '..', 'frontend'), static_url_path='')
 
-    # Register API blueprint
-    from . import routes  # noqa: F401
-    app.register_blueprint(routes.api_bp)
+    # Blueprint de la API
+    from .routes import api_bp
+    app.register_blueprint(api_bp, url_prefix='/api')
+
+    @app.route('/')
+    def serve_index():
+        """Sirve el archivo index.html del frontend."""
+        return send_from_directory(app.static_folder, 'index.html')
+
+    # Manejo de errores genéricos
+    @app.errorhandler(404)
+    def not_found(error):
+        return {"error": "Not Found"}, 404
+
+    @app.errorhandler(400)
+    def bad_request(error):
+        return {"error": "Bad Request"}, 400
 
     return app

@@ -1,8 +1,9 @@
-"""Entry point for running the Flask application."""
-
 from backend import create_app
 
-app = create_app()
+
+__name__ = "__main__"
 
 if __name__ == "__main__":
-    app.run(debug=True, host="0.0.0.0", port=5000)
+    app = create_app()
+    # Ejecutar la aplicación en modo desarrollo
+    app.run(host="0.0.0.0", port=5000, debug=True)

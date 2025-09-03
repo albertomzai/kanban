@@ -1,2 +1,4 @@
+# Dependencias básicas para el backend
+
 Flask
 pytest
