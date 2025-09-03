@@ -1,0 +1,79 @@
+{
+  "api_contract": {
+    "ruta": "/api/tasks",
+    "metodo": "GET, POST, PUT, DELETE",
+    "descripcion": "Gestión completa de tareas Kanban.",
+    "parametros_entrada_POST": {
+      "content": "string",
+      "state": "string (Valores: 'Por Hacer', 'En Progreso', 'Hecho')"
+    },
+    "parametros_entrada_PUT_id": "integer",
+    "parametros_entrada_PUT_body": {
+      "content": "string (opcional)",
+      "state": "string (opcional, Valores: 'Por Hacer', 'En Progreso', 'Hecho')"
+    },
+    "respuesta_GET_all": [
+      {
+        "id": "integer",
+        "content": "string",
+        "state": "string"
+      }
+    ],
+    "respuesta_POST": {
+      "id": "integer",
+      "content": "string",
+      "state": "string"
+    },
+    "respuesta_PUT": {
+      "id": "integer",
+      "content": "string",
+      "state": "string"
+    },
+    "respuesta_DELETE": {
+      "message": "string"
+    }
+  },
+  "contrato_qa_e2e": {
+    "task_card": "task-card",
+    "add_task_button": "btn-add-task",
+    "edit_task_input": "input-edit-task",
+    "drag_source_column": "col-por-hacer",
+    "drop_target_column": "col-en-progreso",
+    "delete_task_button": "btn-delete-task"
+  },
+  "plan": [
+    {
+      "etapa": "backend",
+      "tareas": [
+        "Crear fichero requirements.txt con dependencias Flask y pytest.",
+        "Crear fichero pytest.ini configurado para la ruta raíz del proyecto.",
+        "Crear fichero app.py que importe create_app desde el paquete backend y ejecute la aplicación.",
+        "Crear carpeta backend con __init__.py que defina la factory create_app usando Blueprint.",
+        "Dentro de backend, crear routes.py con un Blueprint que exponga los endpoints GET /api/tasks, POST /api/tasks, PUT /api/tasks/<id>, DELETE /api/tasks/<id>.",
+        "Implementar lógica para cargar y guardar tareas en tasks.json dentro del directorio backend.",
+        "Añadir manejo de errores y validación de entrada JSON en cada endpoint.",
+        "Crear carpeta tests con test_backend.py que use el cliente de prueba Flask para verificar los cuatro endpoints y la persistencia en tasks.json.",
+        "Agregar un .gitignore en la raíz ignorando __pycache__, *.pyc, node_modules, venv."
+      ]
+    },
+    {
+      "etapa": "frontend",
+      "tareas": [
+        "Crear frontend/index.html con estructura de tres columnas verticales para las tareas.",
+        "Incluir estilos CSS internos usando Grid o Flexbox para la disposición de columnas y tarjetas.",
+        "Agregar un formulario o botón con data-testid 'btn-add-task' para crear nuevas tarjetas en la columna 'Por Hacer'.",
+        "Implementar JavaScript ES6 que cargue todas las tareas del backend al iniciar la página.",
+        "Añadir lógica para crear, editar (clic en tarjeta), eliminar y arrastrar/soltar tarjetas entre columnas.",
+        "Al mover una tarjeta, enviar solicitud PUT a /api/tasks/<id> con el nuevo estado correspondiente.",
+        "Usar atributos data-testid en elementos clave según contrato_qa_e2e."
+      ]
+    },
+    {
+      "etapa": "e2e",
+      "tareas": [
+        "Crear carpeta cypress/e2e con test.cy.js que verifique la creación de una tarea, su edición, movimiento entre columnas y eliminación usando los data-testid definidos.",
+        "Configurar Cypress para apuntar al servidor Flask local durante las pruebas."
+      ]
+    }
+  ]
+}
