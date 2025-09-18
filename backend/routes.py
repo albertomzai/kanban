@@ -1,97 +1,117 @@
+"""Blueprint that implements the Kanban API endpoints."""
+
 import json
 import os
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 
 from flask import Blueprint, request, jsonify, abort
 
-
-# Ruta absoluta del archivo de tareas
+# Path to the JSON file that stores tasks
 TASKS_FILE = os.path.join(os.path.dirname(__file__), 'tasks.json')
 
+# Valid states for a task
+VALID_STATES = {'Por Hacer', 'En Progreso', 'Hecho'}
 
-api_bp = Blueprint('api', __name__)
-
+tasks_bp = Blueprint('tasks_bp', __name__)
 
 def _load_tasks() -> List[Dict[str, Any]]:
-    """Carga las tareas desde TASKS_FILE."""
+    """Load tasks from the JSON file.
+
+    Returns an empty list if the file does not exist or is malformed."""
     try:
         with open(TASKS_FILE, 'r', encoding='utf-8') as f:
             return json.load(f)
     except FileNotFoundError:
         return []
-
+    except (json.JSONDecodeError, ValueError):
+        # If the file is corrupted, start fresh
+        return []
 
 def _save_tasks(tasks: List[Dict[str, Any]]) -> None:
-    """Guarda la lista de tareas en TASKS_FILE."""
+    """Persist tasks to the JSON file."""
     with open(TASKS_FILE, 'w', encoding='utf-8') as f:
         json.dump(tasks, f, ensure_ascii=False, indent=2)
 
+def _validate_task_payload(data: Dict[str, Any]) -> None:
+    """Validate the payload for creating or updating a task.
 
-@api_bp.route('/tasks', methods=['GET'])
+    Raises an HTTP 400 error if validation fails."""
+    if not isinstance(data, dict):
+        abort(400, description='Payload must be a JSON object')
+
+    content = data.get('content')
+    state = data.get('state', 'Por Hacer')  # default to 'Por Hacer' on create
+
+    if not isinstance(content, str) or not content.strip():
+        abort(400, description='"content" must be a non‑empty string')
+
+    if state not in VALID_STATES:
+        abort(400, description=f'State must be one of {sorted(VALID_STATES)}')
+
+@tasks_bp.route('/tasks', methods=['GET'])
 def get_tasks():
-    """Devuelve todas las tareas."""
+    """Return all tasks as a JSON list."""
     tasks = _load_tasks()
     return jsonify(tasks), 200
 
-
-@api_bp.route('/tasks', methods=['POST'])
+@tasks_bp.route('/tasks', methods=['POST'])
 def create_task():
-    """Crea una nueva tarea con estado 'Por Hacer'."""
-    if not request.is_json:
-        abort(400, description='Request must be JSON')
+    """Create a new task.
 
-    data = request.get_json()
-    content = data.get('content')
-    if not content or not isinstance(content, str):
-        abort(400, description='Missing or invalid "content" field')
+    Expects JSON payload with 'content'.
+    The new task receives an auto‑incremented integer id and the default state."""
+    data = request.get_json() or {}
+    _validate_task_payload(data)
 
     tasks = _load_tasks()
-    new_id = max([t['id'] for t in tasks], default=0) + 1
+    # Generate next ID
+    next_id = max((t['id'] for t in tasks), default=0) + 1
+
     new_task = {
-        'id': new_id,
-        'content': content,
-        'status': 'Por Hacer'
+        'id': next_id,
+        'content': data['content'].strip(),
+        'state': data.get('state', 'Por Hacer')
     }
     tasks.append(new_task)
     _save_tasks(tasks)
 
     return jsonify(new_task), 201
 
-
-@api_bp.route('/tasks/<int:task_id>', methods=['PUT'])
+@tasks_bp.route('/tasks/<int:task_id>', methods=['PUT'])
 def update_task(task_id):
-    """Actualiza el contenido o estado de una tarea existente."""
-    if not request.is_json:
-        abort(400, description='Request must be JSON')
+    """Update an existing task.
 
-    data = request.get_json()
-    content: Optional[str] = data.get('content')
-    status: Optional[str] = data.get('status')
+    Payload may contain 'content' and/or 'state'."""
+    data = request.get_json() or {}
+
+    # Validate only the fields that are present
+    if 'content' in data:
+        if not isinstance(data['content'], str) or not data['content'].strip():
+            abort(400, description='"content" must be a non‑empty string')
+
+    if 'state' in data:
+        if data['state'] not in VALID_STATES:
+            abort(400, description=f'State must be one of {sorted(VALID_STATES)}')
 
     tasks = _load_tasks()
-    task = next((t for t in tasks if t['id'] == task_id), None)
-    if not task:
-        abort(404, description='Task not found')
+    for task in tasks:
+        if task['id'] == task_id:
+            # Apply updates
+            if 'content' in data:
+                task['content'] = data['content'].strip()
+            if 'state' in data:
+                task['state'] = data['state']
+            _save_tasks(tasks)
+            return jsonify(task), 200
 
-    if content is not None:
-        if not isinstance(content, str):
-            abort(400, description='Invalid "content" field')
-        task['content'] = content
+    abort(404, description='Task not found')
 
-    if status is not None:
-        if status not in ['Por Hacer', 'En Progreso', 'Hecho']:
-            abort(400, description='Invalid status value')
-        task['status'] = status
-
-    _save_tasks(tasks)
-    return jsonify(task), 200
-
-
-@api_bp.route('/tasks/<int:task_id>', methods=['DELETE'])
+@tasks_bp.route('/tasks/<int:task_id>', methods=['DELETE'])
 def delete_task(task_id):
-    """Elimina una tarea existente."""
+    """Delete a task by its ID."""
     tasks = _load_tasks()
     new_tasks = [t for t in tasks if t['id'] != task_id]
+
     if len(new_tasks) == len(tasks):
         abort(404, description='Task not found')
 
