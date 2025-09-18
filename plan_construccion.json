@@ -1,10 +1,9 @@
 {
   "api_contract": {
     "ruta": "/api/tasks",
-    "metodo_get": "GET",
-    "descripcion_get": "Devuelve todas las tareas existentes.",
-    "respuesta_get": {
-      "tasks": [
+    "metodo_get": {
+      "descripcion": "Obtiene todas las tareas existentes.",
+      "respuesta_esperada": [
         {
           "id": "integer",
           "content": "string",
@@ -12,82 +11,91 @@
         }
       ]
     },
-    "metodo_post": "POST",
-    "descripcion_post": "Crea una nueva tarea.",
-    "parametros_entrada_post": {
-      "content": "string",
-      "state": "string (Valores: 'Por Hacer')"
+    "metodo_post": {
+      "descripcion": "Crea una nueva tarea con estado inicial.",
+      "parametros_entrada": {
+        "content": "string",
+        "state": "string (Valores: 'Por Hacer')"
+      },
+      "respuesta_esperada": {
+        "id": "integer",
+        "content": "string",
+        "state": "string"
+      }
     },
-    "respuesta_post": {
-      "id": "integer",
-      "content": "string",
-      "state": "string"
+    "metodo_put": {
+      "descripcion": "Actualiza el contenido o estado de una tarea existente.",
+      "parametros_url": {
+        "id": "integer"
+      },
+      "parametros_entrada": {
+        "content": "string (opcional)",
+        "state": "string (Valores: 'Por Hacer', 'En Progreso', 'Hecho') (opcional)"
+      },
+      "respuesta_esperada": {
+        "id": "integer",
+        "content": "string",
+        "state": "string"
+      }
     },
-    "metodo_put": "PUT",
-    "descripcion_put": "Actualiza una tarea existente.",
-    "parametros_entrada_put": {
-      "content": "string (opcional)",
-      "state": "string (opcional, Valores: 'Por Hacer', 'En Progreso', 'Hecho')"
-    },
-    "respuesta_put": {
-      "id": "integer",
-      "content": "string",
-      "state": "string"
-    },
-    "metodo_delete": "DELETE",
-    "descripcion_delete": "Elimina una tarea.",
-    "parametros_entrada_delete": {
-      "id": "integer"
-    },
-    "respuesta_delete": {
-      "message": "string"
+    "metodo_delete": {
+      "descripcion": "Elimina una tarea existente.",
+      "parametros_url": {
+        "id": "integer"
+      },
+      "respuesta_esperada": {
+        "message": "string (ej. 'Task deleted successfully')"
+      }
     }
   },
   "contrato_qa_e2e": {
-    "column_por_hacer": "col-por-hacer",
-    "column_en_progreso": "col-en-progreso",
-    "column_hecho": "col-hecho",
-    "task_card": "task-card",
-    "add_task_button": "btn-add-task",
-    "edit_task_input": "input-edit-task"
+    "tabla_tareas_por_hacer": "tasks-por-hacer",
+    "tabla_tareas_en_progreso": "tasks-en-progreso",
+    "tabla_tareas_hecho": "tasks-hecho",
+    "boton_nueva_tarea": "btn-new-task",
+    "campo_contenido_tarea": "input-task-content",
+    "tarjeta_tarea": "card-task",
+    "drag_source": "draggable-card",
+    "drop_target_por_hacer": "col-por-hacer",
+    "drop_target_en_progreso": "col-en-progreso",
+    "drop_target_hecho": "col-hecho"
   },
   "plan": [
     {
       "etapa": "backend",
       "tareas": [
-        "Crear la estructura de directorios para el backend: crear carpeta 'backend' con __init__.py.",
-        "Definir en backend/__init__.py una factory create_app que configure Flask, CORS y registre blueprints.",
-        "Implementar en backend/routes.py un Blueprint llamado tasks_bp con los endpoints GET /api/tasks, POST /api/tasks, PUT /api/tasks/<int:id> y DELETE /api/tasks/<int:id>.",
-        "Crear funciones auxiliares para leer y escribir el archivo 'tasks.json' usando JSON y manejo de excepciones.",
-        "Validar en cada endpoint que los datos recibidos cumplen con el contrato API (tipo y valores permitidos).",
-        "Devolver respuestas en formato JSON siguiendo el esquema definido en api_contract.",
-        "Agregar un fichero requirements.txt con Flask, flask-cors, pytest.",
-        "Crear un fichero pytest.ini con la configuración mínima para ejecutar tests.",
-        "Generar app.py que importe create_app desde backend y lance la aplicación.",
-        "Añadir pruebas unitarias en tests/test_backend.py que verifiquen cada endpoint usando el test client de Flask."
+        "Crear la estructura de directorios para el proyecto Flask: backend/, backend/routes.py, backend/__init__.py.",
+        "Definir la factory function create_app en backend/__init__.py que inicialice una instancia de Flask y registre un Blueprint llamado 'tasks_bp'.",
+        "Implementar las rutas GET, POST, PUT y DELETE en backend/routes.py bajo el Blueprint 'tasks_bp', mapeadas a '/api/tasks' y '/api/tasks/<int:id>'.",
+        "Crear funciones auxiliares para leer y escribir el archivo tasks.json en la raíz del proyecto, asegurando concurrencia segura.",
+        "Añadir validación de entrada para POST y PUT utilizando JSON schema simple dentro de las rutas correspondientes.",
+        "Implementar manejo de errores HTTP (404, 400) con respuestas JSON coherentes.",
+        "Agregar un fichero requirements.txt que incluya 'Flask==2.3.*' y 'pytest==7.*'.",
+        "Crear pytest.ini en la raíz con contenido '[pytest]\\npythonpath = .\\naddopts = -p no:warnings'.",
+        "Generar app.py en la raíz que importe create_app desde backend y ejecute app.run(host='0.0.0.0', port=5000).",
+        "Crear una carpeta tests/ con test_backend.py que cubra los endpoints GET, POST, PUT y DELETE usando el test client de Flask.",
+        "Añadir un .gitignore en la raíz para excluir __pycache__, *.pyc, env/, instance/.",
+        "Documentar las rutas RESTful en un archivo README.md dentro del directorio backend."
       ]
     },
     {
       "etapa": "frontend",
       "tareas": [
-        "Crear frontend/index.html con una estructura básica: título, tres columnas y un botón para agregar tareas.",
-        "Incluir CSS en el mismo archivo para disponer las columnas mediante Grid o Flexbox.",
-        "Añadir JavaScript ES6 dentro de <script> que cargue todas las tareas del backend al iniciar la página.",
-        "Implementar función para crear una nueva tarjeta cuando se pulsa 'add_task_button', enviando POST a /api/tasks y actualizando el DOM.",
-        "Permitir editar el contenido de una tarjeta haciendo doble clic, mostrando un input inline y enviando PUT al backend con el nuevo texto.",
-        "Integrar la librería drag-and-drop nativa (HTML5 Drag and Drop) para mover tarjetas entre columnas; al soltar, enviar PUT a /api/tasks/<id> con el nuevo estado.",
-        "Actualizar visualmente la tarjeta en el DOM tras una respuesta exitosa del backend."
+        "Crear el archivo frontend/index.html con la estructura básica de una SPA: título, contenedor principal y tres columnas para los estados.",
+        "Incorporar CSS en un bloque <style> dentro de index.html que utilice Grid o Flexbox para posicionar las columnas verticalmente.",
+        "Agregar un formulario modal o input inline para crear nuevas tareas bajo la columna 'Por Hacer', con botón identificado por data-testid 'btn-new-task'.",
+        "Implementar JavaScript ES6 en un bloque <script> dentro de index.html que: a) cargue todas las tareas al iniciar mediante fetch GET /api/tasks; b) renderice tarjetas con data-testid 'card-task' dentro de sus respectivas columnas.",
+        "Añadir listeners para editar el contenido de una tarjeta al hacer doble clic, enviando una petición PUT con el nuevo texto.",
+        "Incorporar la API drag-and-drop nativa del navegador: establecer atributos draggable en las tarjetas y manejar los eventos drop sobre cada columna para actualizar su estado mediante una llamada PUT /api/tasks/<id>.",
+        "Mantener el estado de las tareas en memoria local y sincronizarlo con el backend tras cada operación (creación, edición, movimiento, borrado).",
+        "Incluir manejo básico de errores mostrando mensajes al usuario cuando la API falle."
       ]
     },
     {
       "etapa": "e2e",
       "tareas": [
-        "Crear carpeta cypress/e2e y dentro un archivo kanban.cy.js que realice pruebas End-to-End:",
-        "Visitar la página principal, agregar una nueva tarea y verificar su aparición en 'Por Hacer'.",
-        "Editar el texto de la tarjeta y comprobar que el cambio persiste.",
-        "Arrastrar la tarjeta a la columna 'En Progreso' y validar que el estado se actualiza correctamente.",
-        "Mover la tarjeta a 'Hecho' y confirmar la posición final.",
-        "Eliminar la tarjeta y asegurar que desaparece del DOM."
+        "Crear una carpeta cypress/e2e/ con un archivo kanban.cy.js que: a) visite http://localhost:5000; b) simule la creación de una nueva tarea y verifique su aparición en la columna 'Por Hacer'; c) arrastre la tarjeta a la columna 'En Progreso' y confirme el cambio de estado; d) edite el texto de la tarjeta y verifique que se actualiza; e) elimine la tarjeta y compruebe su desaparición.",
+        "Configurar cypress.json en la raíz con baseUrl apuntando al servidor Flask."
       ]
     }
   ]
