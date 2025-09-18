@@ -1,4 +1,4 @@
-# Dependencias básicas para el backend
+# requirements.txt
 
-Flask
-pytest
+Flask==2.3.*
+pytest==7.*
