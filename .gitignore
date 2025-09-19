@@ -1,20 +1,10 @@
-# Byte-compiled / optimized / DLL files
-__pycache__/
-*.py[cod]
-*$py.class
-
-# C extensions
-build/
-dist/
-eggs/
-.eggs/
-lib64/
-lib/python*/site-packages/
-
-# Virtual environment
+# Python virtual environments
 venv/
-ENV/
-.env
-
-# Pytest cache
 __pycache__/
+*.pyc
+
+# Node modules (frontend)
+frontend/node_modules/
+
+# Logs
+*.log
