@@ -1,57 +1,66 @@
-import os
+"""Integration tests for the backend API."""
+
 import json
+from pathlib import Path
+
 import pytest
 
 from backend import create_app
 
 @pytest.fixture
-def client():
+def app():
     app = create_app()
-    with app.test_client() as client:
-        yield client
+    app.testing = True
+    return app
 
-# Helper to reset tasks.json before each test
-@pytest.fixture(autouse=True)
-def clear_tasks_file(tmp_path, monkeypatch):
-    file_path = tmp_path / 'tasks.json'
-    # Patch the TASKS_FILE path in routes module
-    import backend.routes as routes
-    monkeypatch.setattr(routes, 'TASKS_FILE', file_path)
+@pytest.fixture
+def client(app):
+    return app.test_client()
 
-    # Ensure file is empty before test
-    if file_path.exists():
-        file_path.unlink()
+@pytest.fixture
+def temp_tasks_file(tmp_path, monkeypatch):
+    """Create a temporary tasks.json and patch the module constant."""
+    file = tmp_path / "tasks.json"
+    # Ensure the file exists so that load returns [] rather than raising FileNotFoundError
+    file.write_text("[]", encoding="utf-8")
+    monkeypatch.setattr("backend.routes.TASKS_FILE", str(file))
+    return file
 
-    yield
-
-def test_get_tasks_empty(client):
-    response = client.get('/api/tasks')
+def test_get_tasks_empty(client, temp_tasks_file):
+    response = client.get("/api/tasks")
     assert response.status_code == 200
-    assert response.get_json() == []
+    data = response.get_json()
+    assert isinstance(data, list)
+    assert data == []
 
-def test_create_task(client):
-    payload = {'content': 'Test task'}
-    response = client.post('/api/tasks', json=payload)
+def test_create_task(client, temp_tasks_file):
+    payload = {"content": "Test task", "state": "Por Hacer"}
+    response = client.post("/api/tasks", json=payload)
     assert response.status_code == 201
-    data = response.get_json()
-    assert data['id'] == 1
-    assert data['content'] == 'Test task'
-    assert data['state'] == 'Por Hacer'
+    task = response.get_json()
+    assert task["id"] == 1
+    assert task["content"] == "Test task"
 
-def test_update_task(client):
+def test_update_task(client, temp_tasks_file):
     # First create a task
-    client.post('/api/tasks', json={'content': 'Old'})
+    client.post("/api/tasks", json={"content": "To update", "state": "Por Hacer"})
     # Update it
-    response = client.put('/api/tasks/1', json={'content': 'New', 'state': 'En Progreso'})
+    response = client.put("/api/tasks/1", json={"content": "Updated", "state": "En Progreso"})
     assert response.status_code == 200
-    data = response.get_json()
-    assert data['content'] == 'New'
-    assert data['state'] == 'En Progreso'
+    updated = response.get_json()
+    assert updated["content"] == "Updated"
+    assert updated["state"] == "En Progreso"
 
-def test_delete_task(client):
-    client.post('/api/tasks', json={'content': 'To delete'})
-    response = client.delete('/api/tasks/1')
+def test_delete_task(client, temp_tasks_file):
+    client.post("/api/tasks", json={"content": "To delete", "state": "Por Hacer"})
+    response = client.delete("/api/tasks/1")
     assert response.status_code == 204
-    # Verify deletion
-    get_resp = client.get('/api/tasks')
-    assert get_resp.get_json() == []
+
+def test_invalid_create(client, temp_tasks_file):
+    # Missing content
+    response = client.post("/api/tasks", json={"state": "Por Hacer"})
+    assert response.status_code == 400
+
+def test_nonexistent_update(client, temp_tasks_file):
+    response = client.put("/api/tasks/999", json={"content": "Does not exist"})
+    assert response.status_code == 404

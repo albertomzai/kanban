@@ -1,10 +1,39 @@
-# Python virtual environments
-venv/
+# Byte-compiled / optimized / DLL files
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
 
-# Node modules (frontend)
-frontend/node_modules/
+# Virtual environment
+.venv/
+env/
+ENV/
+env.bak/
+venv/
 
-# Logs
-*.log
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+_virtualenvs/
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Installer logs
+.install_log.txt
+
+# IDE / editor folders
+.idea/
+.vscode/
+
+# Node modules (if any)
+node_modules/
