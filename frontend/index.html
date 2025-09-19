@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kanban Mini-Trello</title>
+
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <style>
+      .column { min-height: 60vh; }
+      .task-card { cursor: grab; }
+      .drag-over { background-color: #e9ecef; }
+    </style>
+</head>
+<body>
+
+    <div class="container-fluid py-4">
+        <h1 class="mb-4 text-center">Kanban Mini-Trello</h1>
+
+        <!-- Botón para añadir tarea -->
+        <div class="row mb-3 justify-content-end">
+            <button id="btn-add-task" class="btn btn-primary" data-testid="btn-add-task">Añadir Tarea</button>
+        </div>
+
+        <!-- Columnas del tablero -->
+        <div class="row g-4">
+            <!-- Por Hacer -->
+            <div class="col-md-4 column" data-testid="column-pending" draggable="false">
+                <h3>Por Hacer</h3>
+                <ul id="list-pending" class="list-group"></ul>
+            </div>
+
+            <!-- En Progreso -->
+            <div class="col-md-4 column" data-testid="column-inprogress" draggable="false">
+                <h3>En Progreso</h3>
+                <ul id="list-inprogress" class="list-group"></ul>
+            </div>
+
+            <!-- Hecho -->
+            <div class="col-md-4 column" data-testid="column-done" draggable="false">
+                <h3>Hecho</h3>
+                <ul id="list-done" class="list-group"></ul>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Bootstrap 5 JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Script principal -->
+    <script>
+
+      const API_URL = '/api/tasks';
+
+      // Estado local de tareas
+      let tasks = [];
+
+      // Elementos del DOM
+      const lists = {
+          'Por Hacer': document.getElementById('list-pending'),
+          'En Progreso': document.getElementById('list-inprogress'),
+          'Hecho': document.getElementById('list-done')
+      };
+
+      // Cargar tareas al iniciar
+      async function loadTasks() {
+          try {
+              const res = await fetch(API_URL);
+              if (!res.ok) throw new Error('Error al cargar tareas');
+              tasks = await res.json();
+              renderTasks();
+          } catch (e) { console.error(e); }
+      }
+
+      // Renderizar todas las tareas
+      function renderTasks() {
+          Object.values(lists).forEach(list => list.innerHTML = '');
+          tasks.forEach(task => addTaskToDOM(task));
+      }
+
+      // Añadir una tarjeta al DOM
+      function addTaskToDOM(task) {
+          const li = document.createElement('li');
+          li.className = 'list-group-item mb-2 task-card';
+          li.setAttribute('draggable', true);
+          li.dataset.id = task.id;
+          li.dataset-testid = 'card-task';
+
+          // Contenido editable
+          const span = document.createElement('span');
+          span.textContent = task.content;
+          span.style.flexGrow = 1;
+
+          // Botón de eliminar
+          const delBtn = document.createElement('button');
+          delBtn.className = 'btn btn-sm btn-danger ms-2';
+          delBtn.innerHTML = '&times;';
+
+          li.appendChild(span);
+          li.appendChild(delBtn);
+
+          // Evento de edición inline
+          span.addEventListener('click', () => {
+              const input = document.createElement('input');
+              input.type = 'text';
+              input.value = task.content;
+              input.className = 'form-control form-control-sm';
+              input.setAttribute('data-testid', 'input-edit-task');
+
+              span.replaceWith(input);
+              input.focus();
+
+              const updateContent = async () => {
+                  const newText = input.value.trim();
+                  if (newText && newText !== task.content) {
+                      await updateTask(task.id, { content: newText });
+                      task.content = newText;
+                  }
+                  input.replaceWith(span);
+              };
+
+              input.addEventListener('blur', updateContent);
+              input.addEventListener('keydown', e => { if (e.key === 'Enter') input.blur(); });
+          });
+
+          // Evento de eliminar
+          delBtn.addEventListener('click', async () => {
+              await deleteTask(task.id);
+              li.remove();
+          });
+
+          // Drag & Drop handlers
+          li.addEventListener('dragstart', e => {
+              e.dataTransfer.setData('text/plain', task.id);
+              e.currentTarget.classList.add('opacity-50');
+          });
+
+          li.addEventListener('dragend', () => {
+              e.currentTarget.classList.remove('opacity-50');
+          });
+
+          lists[task.state].appendChild(li);
+      }
+
+      // Añadir nueva tarea
+      async function addNewTask() {
+          const content = prompt('Introduce el contenido de la tarea:');
+          if (!content) return;
+          try {
+              const res = await fetch(API_URL, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ content, state: 'Por Hacer' })
+              });
+              if (!res.ok) throw new Error('Error al crear tarea');
+              const newTask = await res.json();
+              tasks.push(newTask);
+              addTaskToDOM(newTask);
+          } catch (e) { console.error(e); }
+      }
+
+      // Actualizar tarea en backend
+      async function updateTask(id, data) {
+          try {
+              const res = await fetch(`${API_URL}/${id}`, {
+                  method: 'PUT',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify(data)
+              });
+              if (!res.ok) throw new Error('Error al actualizar tarea');
+          } catch (e) { console.error(e); }
+      }
+
+      // Eliminar tarea en backend
+      async function deleteTask(id) {
+          try {
+              const res = await fetch(`${API_URL}/${id}`, { method: 'DELETE' });
+              if (!res.ok) throw new Error('Error al eliminar tarea');
+              tasks = tasks.filter(t => t.id !== id);
+          } catch (e) { console.error(e); }
+      }
+
+      // Drag & Drop en columnas
+      Object.values(lists).forEach(list => {
+          list.addEventListener('dragover', e => { e.preventDefault(); });
+          list.addEventListener('drop', async e => {
+              e.preventDefault();
+              const id = parseInt(e.dataTransfer.getData('text/plain'));
+              const task = tasks.find(t => t.id === id);
+              if (!task) return;
+
+              const newState = Object.keys(lists).find(key => lists[key] === e.currentTarget);
+              if (newState && newState !== task.state) {
+                  await updateTask(id, { state: newState });
+                  task.state = newState;
+                  renderTasks();
+              }
+          });
+      });
+
+      // Evento botón añadir tarea
+      document.getElementById('btn-add-task').addEventListener('click', addNewTask);
+
+      // Inicializar
+      loadTasks();
+
+    </script>
+
+</body>
+</html>
