@@ -1,0 +1,96 @@
+{
+  "api_contract": {
+    "ruta": "/api/tasks",
+    "metodo": "GET",
+    "descripcion": "Devuelve todas las tareas existentes en el tablero Kanban.",
+    "respuesta_esperada": {
+      "tasks": [
+        {
+          "id": "integer",
+          "content": "string",
+          "state": "string (Valores: 'Por Hacer', 'En Progreso', 'Hecho')"
+        }
+      ]
+    }
+  },
+  "api_contract_2": {
+    "ruta": "/api/tasks",
+    "metodo": "POST",
+    "descripcion": "Crea una nueva tarea en el tablero Kanban.",
+    "parametros_entrada": {
+      "content": "string",
+      "state": "string (Valor inicial: 'Por Hacer')"
+    },
+    "respuesta_esperada": {
+      "task": {
+        "id": "integer",
+        "content": "string",
+        "state": "string"
+      }
+    }
+  },
+  "api_contract_3": {
+    "ruta": "/api/tasks/{id}",
+    "metodo": "PUT",
+    "descripcion": "Actualiza el estado o contenido de una tarea existente.",
+    "parametros_entrada": {
+      "content": "string (opcional)",
+      "state": "string (opcional, valores: 'Por Hacer', 'En Progreso', 'Hecho')"
+    },
+    "respuesta_esperada": {
+      "task": {
+        "id": "integer",
+        "content": "string",
+        "state": "string"
+      }
+    }
+  },
+  "api_contract_4": {
+    "ruta": "/api/tasks/{id}",
+    "metodo": "DELETE",
+    "descripcion": "Elimina una tarea existente del tablero Kanban.",
+    "respuesta_esperada": {
+      "message": "string (ej: 'Tarea eliminada')"
+    }
+  },
+  "contrato_qa_e2e": {
+    "tarjeta_por_hacer": "card-por-hacer",
+    "tarjeta_en_progreso": "card-en-progreso",
+    "tarjeta_hecha": "card-hecha",
+    "boton_agregar": "btn-agregar-tarea",
+    "formulario_tarea": "form-nueva-tarea"
+  },
+  "plan": [
+    {
+      "etapa": "backend",
+      "tareas": [
+        "Crear el fichero `requirements.txt` en la raíz del proyecto con las dependencias 'Flask' y 'pytest'.",
+        "Generar un fichero `pytest.ini` en la raíz de proyecto para configurar pruebas unitarias con pytest.",
+        "Implementar el archivo principal `app.py` que inicialice Flask y ejecute la aplicación desde el paquete `backend`.",
+        "Diseñar una clase `Task` en `backend/modelos.py` para representar las entidades de tareas en el tablero Kanban.",
+        "Configurar un sistema de persistencia en `backend/repositorio.py` que utilice un archivo 'tasks.json' en la raíz del proyecto para almacenar y recuperar las tareas.",
+        "Implementar el endpoint GET `/api/tasks` en `backend/routes.py` para devolver todas las tareas existentes desde el repositorio.",
+        "Definir el endpoint POST `/api/tasks` en `backend/routes.py` que valide los datos de entrada, cree una nueva tarea y la persista en 'tasks.json'.",
+        "Crear un endpoint PUT `/api/tasks/<id>` para actualizar el estado o contenido de una tarea existente y sincronizarlo con 'tasks.json'.",
+        "Implementar el endpoint DELETE `/api/tasks/<id>` que elimine una tarea del archivo 'tasks.json' y devuelva una confirmación en formato JSON.",
+        "Configurar la aplicación Flask para servir los recursos estáticos desde la carpeta `frontend`."
+      ]
+    },
+    {
+      "etapa": "frontend",
+      "tareas": [
+        "Crear el fichero HTML `frontend/index.html` con la estructura del tablero Kanban: tres columnas verticales ('Por Hacer', 'En Progreso', 'Hecho') y un formulario para añadir nuevas tareas.",
+        "Incluir en `index.html` los elementos de interfaz necesarios para el drag-and-drop de tarjetas con clases como 'card-por-hacer', 'card-en-progreso' y 'card-hecha'.",
+        "Implementar el código JavaScript en `index.html` para detectar interacciones del usuario (arrastrar y soltar tarjetas) y comunicarse con el backend via fetch.",
+        "Realizar actualizaciones dinámicas en el DOM cuando se mueve o edita una tarea, utilizando los datos recuperados de la API del backend.",
+        "Configurar un evento de clic para permitir editar el contenido de las tarjetas mediante inputs internos en el HTML."
+      ]
+    },
+    {
+      "etapa": "e2e",
+      "tareas": [
+        "Crear el fichero `cypress/e2e/tasks.cy.js` con pruebas end-to-end que valide la funcionalidad del drag-and-drop y la actualización de estado de tareas en el tablero Kanban."
+      ]
+    }
+  ]
+}
