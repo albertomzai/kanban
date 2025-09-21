@@ -1,58 +1,44 @@
-from flask import Blueprint, jsonify, request, abort
-import os
-import json
+from flask import jsonify, request, Blueprint, abort
 
 api_bp = Blueprint('api', __name__)
-TASKS_FILE = 'tasks.json'
 
 @api_bp.route('/tasks', methods=['GET'])
 def get_tasks():
-    if not os.path.exists(TASKS_FILE):
-        return jsonify([]), 200
-    with open(TASKS_FILE, 'r') as file:
-        tasks = json.load(file)
-    return jsonify(tasks), 200
+    tasks = repository.load_tasks()
+    return jsonify([task.__dict__ for task in tasks])
 
 @api_bp.route('/tasks', methods=['POST'])
 def create_task():
-    data = request.get_json()
+    data = request.get_json(silent=True)
     if not data or 'content' not in data:
-        abort(400, description='Invalid task data')
-    with open(TASKS_FILE, 'r+') as file:
-        tasks = json.load(file) if os.path.exists(TASKS_FILE) else []
-        new_task = {'id': len(tasks) + 1, 'content': data['content'], 'state': 'Por Hacer'}
-        tasks.append(new_task)
-        file.seek(0)
-        json.dump(tasks, file, indent=4)
-    return jsonify(new_task), 201
+        abort(400, 'Content is required')
 
-@api_bp.route('/tasks/<int:task_id>', methods=['PUT'])
-def update_task(task_id):
-    data = request.get_json()
-    if not data or ('content' not in data and 'state' not in data):
-        abort(400, description='Invalid task data')
-    with open(TASKS_FILE, 'r+') as file:
-        tasks = json.load(file) if os.path.exists(TASKS_FILE) else []
-        for task in tasks:
-            if task['id'] == task_id:
-                task.update(data)
-                break
-        else:
-            abort(404, description='Task not found')
-        file.seek(0)
-        json.dump(tasks, file, indent=4)
-    return jsonify(next(task for task in tasks if task['id'] == task_id)), 200
+    task_id = str(hash(data['content']))
+    new_task = Task(task_id, data['content'], 'To Do')
+    repository.save_tasks([new_task])
+    return jsonify({'id': new_task.id}), 201
 
-@api_bp.route('/tasks/<int:task_id>', methods=['DELETE'])
-def delete_task(task_id):
-    with open(TASKS_FILE, 'r+') as file:
-        tasks = json.load(file) if os.path.exists(TASKS_FILE) else []
-        for task in tasks[:]:
-            if task['id'] == task_id:
-                tasks.remove(task)
-                break
-        else:
-            abort(404, description='Task not found')
-        file.seek(0)
-        json.dump(tasks, file, indent=4)
-    return '', 204
+@api_bp.route('/tasks/<task_id>', methods=['PUT'])
+def update_task(task_id: str):
+    data = request.get_json(silent=True)
+    if not data:
+        abort(400, 'No data provided')
+
+    try:
+        task = repository.load_tasks()[int(task_id)]
+        task.content = data['content'] if 'content' in data else task.content
+        task.state = data['state'] if 'state' in data else task.state
+        repository.save_tasks([task])
+        return jsonify({'id': task_id}), 200
+    except IndexError:
+        abort(404, f'Task {task_id} not found')
+
+@api_bp.route('/tasks/<task_id>', methods=['DELETE'])
+def delete_task(task_id: str):
+    try:
+        tasks = repository.load_tasks()
+        tasks.pop(int(task_id))
+        repository.save_tasks(tasks)
+        return jsonify({'status': 'success'}), 204
+    except IndexError:
+        abort(404, f'Task {task_id} not found')
