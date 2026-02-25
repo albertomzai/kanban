@@ -1,44 +1,79 @@
-from flask import jsonify, request, Blueprint, abort
+from flask import Blueprint, request, jsonify
+from .storage import cargar_tareas, guardar_tareas
 
+# Creación del Blueprint para la API
 api_bp = Blueprint('api', __name__)
 
-@api_bp.route('/tasks', methods=['GET'])
+
+@api_bp.route('/api/tasks', methods=['GET'])
 def get_tasks():
-    tasks = repository.load_tasks()
-    return jsonify([task.__dict__ for task in tasks])
+    """
+    Endpoint para obtener todas las tareas.
+    Devuelve una lista JSON con todas las tareas almacenadas.
+    """
+    tareas = cargar_tareas()
+    return jsonify(tareas)
 
-@api_bp.route('/tasks', methods=['POST'])
+
+@api_bp.route('/api/tasks', methods=['POST'])
 def create_task():
-    data = request.get_json(silent=True)
+    """
+    Endpoint para crear una nueva tarea.
+    Espera un JSON con el campo 'content'.
+    Asigna un ID único y el estado inicial 'Por Hacer'.
+    """
+    data = request.get_json()
     if not data or 'content' not in data:
-        abort(400, 'Content is required')
+        return jsonify({'error': 'El contenido es obligatorio'}), 400
 
-    task_id = str(hash(data['content']))
-    new_task = Task(task_id, data['content'], 'To Do')
-    repository.save_tasks([new_task])
-    return jsonify({'id': new_task.id}), 201
+    tareas = cargar_tareas()
+    # Generación de ID simple (máximo existente + 1)
+    new_id = max([t.get('id', 0) for t in tareas], default=0) + 1
+    
+    nueva_tarea = {
+        'id': new_id,
+        'content': data['content'],
+        'state': 'Por Hacer'
+    }
+    
+    tareas.append(nueva_tarea)
+    guardar_tareas(tareas)
+    return jsonify(nueva_tarea), 201
 
-@api_bp.route('/tasks/<task_id>', methods=['PUT'])
-def update_task(task_id: str):
-    data = request.get_json(silent=True)
-    if not data:
-        abort(400, 'No data provided')
 
-    try:
-        task = repository.load_tasks()[int(task_id)]
-        task.content = data['content'] if 'content' in data else task.content
-        task.state = data['state'] if 'state' in data else task.state
-        repository.save_tasks([task])
-        return jsonify({'id': task_id}), 200
-    except IndexError:
-        abort(404, f'Task {task_id} not found')
+@api_bp.route('/api/tasks/<int:id>', methods=['PUT'])
+def update_task(id):
+    """
+    Endpoint para actualizar una tarea existente.
+    Permite modificar el 'content' y/o el 'state' de la tarea.
+    """
+    tareas = cargar_tareas()
+    tarea = next((t for t in tareas if t['id'] == id), None)
+    
+    if not tarea:
+        return jsonify({'error': 'Tarea no encontrada'}), 404
+    
+    data = request.get_json()
+    if data:
+        if 'content' in data:
+            tarea['content'] = data['content']
+        if 'state' in data:
+            tarea['state'] = data['state']
+    
+    guardar_tareas(tareas)
+    return jsonify(tarea)
 
-@api_bp.route('/tasks/<task_id>', methods=['DELETE'])
-def delete_task(task_id: str):
-    try:
-        tasks = repository.load_tasks()
-        tasks.pop(int(task_id))
-        repository.save_tasks(tasks)
-        return jsonify({'status': 'success'}), 204
-    except IndexError:
-        abort(404, f'Task {task_id} not found')
+
+@api_bp.route('/api/tasks/<int:id>', methods=['DELETE'])
+def delete_task(id):
+    """
+    Endpoint para eliminar una tarea por su ID.
+    """
+    tareas = cargar_tareas()
+    tareas_filtradas = [t for t in tareas if t['id'] != id]
+    
+    if len(tareas) == len(tareas_filtradas):
+        return jsonify({'error': 'Tarea no encontrada'}), 404
+    
+    guardar_tareas(tareas_filtradas)
+    return jsonify({'message': 'Tarea eliminada correctamente'})
